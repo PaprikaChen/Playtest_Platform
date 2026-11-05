@@ -5,7 +5,7 @@ issue: null
 agent: claude-code
 model: claude-opus-5-5
 type: infra
-commits: []
+commits: [e885358, c5111fd]
 outcome: accepted
 human_corrections: 0
 caught_by: [unit-test, browser-test]
