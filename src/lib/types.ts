@@ -21,6 +21,8 @@ export interface RecallPrompt {
   question_id: string;
   utterance_id: string;
   hint: string;
+  /** AI-generated restatement of the utterance; "" when the provider produces none (mock, old sessions). */
+  summary: string;
   replay_start_ms: number;
   replay_end_ms: number;
   state: "shown" | "inserted" | "dismissed";

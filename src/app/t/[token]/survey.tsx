@@ -4,7 +4,7 @@ import { ClipPlayer } from "@/components/clip-player";
 import { fmtTime } from "@/lib/format";
 import type { Question } from "@/lib/types";
 
-interface Prompt { id: string; question_id: string; quote: string; hint: string; source: string; start_ms: number; replay_start_ms: number; replay_end_ms: number; state: string }
+interface Prompt { id: string; question_id: string; quote: string; hint: string; summary: string; source: string; start_ms: number; replay_start_ms: number; replay_end_ms: number; state: string }
 interface Status { session: string; transcript: string; prompts: string; provider: string | null; error: string | null }
 interface Ans { text: string; rating: number | null; promptIds: string[] }
 
@@ -88,12 +88,12 @@ export function Survey({ token, sessionId, projectName, audioOnly, onSubmitted }
     // keepalive: an immediate reload must not cancel the card-state update.
     void fetch(`/api/sessions/${sessionId}/recall-prompts`, { method: "PATCH", headers, keepalive: true, body: JSON.stringify({ promptId: p.id, state }) });
   }
-  function insert(p: Prompt) {
+  function insert(p: Prompt, line: string) {
     const a = ans(p.question_id);
-    const line = `At ${fmtTime(p.start_ms)} I said “${p.quote}”. `;
     setAns(p.question_id, { text: a.text ? `${a.text.trimEnd()}\n${line}` : line, promptIds: [...new Set([...a.promptIds, p.id])] });
     setPromptState(p, "inserted");
   }
+  const quoteLine = (p: Prompt) => `At ${fmtTime(p.start_ms)} I said “${p.quote}”. `;
 
   async function submit() {
     setBusy(true);
@@ -119,7 +119,7 @@ export function Survey({ token, sessionId, projectName, audioOnly, onSubmitted }
           <span aria-hidden className="mt-0.5">{pending ? "⏳" : status?.prompts === "failed" ? "⚠️" : "💡"}</span>
           <p>
             {pending && "Finding the moments you commented on… You can start answering (and even submit) now; reminders will appear under each question when ready."}
-            {status?.prompts === "done" && <>Reminders are based only on what you said or typed. They&apos;re suggestions: insert, edit or dismiss them. Nothing is filled in for you.{status.provider?.includes("placeholder") && <span className="opacity-70"> (Alpha: keyword matching stands in for the AI model.)</span>}</>}
+            {status?.prompts === "done" && <>Reminders are based only on what you said or typed; &ldquo;One way to put it&rdquo; is an AI rewording of your own comment and may be imperfect. They&apos;re suggestions: insert, edit or dismiss them. Nothing is filled in for you.{status.provider?.includes("placeholder") && <span className="opacity-70"> (Alpha: keyword matching stands in for the AI model.)</span>}</>}
             {status?.prompts === "failed" && "Reminders couldn't be generated this time. Your answers still work as normal."}
           </p>
         </div>
@@ -170,8 +170,17 @@ export function Survey({ token, sessionId, projectName, audioOnly, onSubmitted }
                             <span className="italic">“{p.quote}”</span>
                           </p>
                           <p className="mt-1 text-xs text-muted">{p.hint}</p>
-                          <div className="mt-auto flex gap-1.5 pt-2">
-                            <button type="button" className="btn-ghost py-1 text-xs" disabled={p.state === "inserted"} onClick={() => insert(p)}>{p.state === "inserted" ? "Added ✓" : "Add to my answer"}</button>
+                          {p.summary && (
+                            <p className="mt-1.5 rounded-lg bg-background px-2 py-1.5 text-xs">
+                              <span className="pill mr-1.5 bg-accent-soft text-accent-strong" title="Written by AI from your own comment">One way to put it</span>
+                              {p.summary}
+                            </p>
+                          )}
+                          <div className="mt-auto flex flex-wrap gap-1.5 pt-2">
+                            <button type="button" className="btn-ghost py-1 text-xs" disabled={p.state === "inserted"} onClick={() => insert(p, quoteLine(p))}>{p.state === "inserted" ? "Added ✓" : p.summary ? "Add quote" : "Add to my answer"}</button>
+                            {p.summary && (
+                              <button type="button" className="btn-ghost py-1 text-xs" disabled={p.state === "inserted"} onClick={() => insert(p, p.summary)} title="Inserts this wording into your answer; edit it to match what you mean.">Use this wording</button>
+                            )}
                             <button type="button" className="btn py-1 text-xs text-muted hover:text-foreground" onClick={() => setPromptState(p, "dismissed")}>Dismiss</button>
                           </div>
                         </div>
