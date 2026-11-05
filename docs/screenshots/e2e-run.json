@@ -1,13 +1,22 @@
 {
-  "sidePanel": "Recording\n0:24\n\nMode: screen+mic · uploaded 4 parts\n\n🎙 Live captions on: speak any time\n\nScreen sharing stopped. Your voice is still being recorded and comments still work.\n\n✎ typed\n0:02\nthe door is hard to see\n\nTimestamp is taken when you start typing. Click the game to return control to it.\n\nI'm done playing → questionnaire",
-  "recallCards": 1,
+  "sidePanel": "Recording\n0:24\n\nMode: screen+mic · uploaded 4 parts\n\n🎙 Live captions on: speak any time\n\nScreen sharing stopped. Your voice is still being recorded and comments still work.\n\n✎ typed\n0:03\nthe door is hard to see\n\nTimestamp is taken when you start typing. Click the game to return control to it.\n\nI'm done playing → questionnaire",
+  "recallCards": 5,
+  "spokenCards": [
+    "0:02 you said“I don't understand where to go after the first platform”",
+    "0:10 you said“This jump is way too hard, I keep falling off”",
+    "0:10 you said“This jump is way too hard, I keep falling off”",
+    "0:17 you said“The controls feel a little floaty when I land”"
+  ],
   "media": {
-    "duration": 24.721,
+    "duration": 24.81,
     "width": 1440,
     "audioBytes": 208103,
-    "videoBytes": 85872
+    "videoBytes": 88155
   },
   "timeline": [
-    "✎ typed\n0:02\nthe door is hard to see"
+    "🎙 transcript\n0:02\nI don't understand where to go after the first platform",
+    "✎ typed\n0:03\nthe door is hard to see",
+    "🎙 transcript\n0:10\nThis jump is way too hard, I keep falling off",
+    "🎙 transcript\n0:17\nThe controls feel a little floaty when I land"
   ]
 }

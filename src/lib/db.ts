@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS sessions (
   tester_name TEXT NOT NULL,
   idempotency_key TEXT UNIQUE,
   capture_mode TEXT NOT NULL,
+  language TEXT,
   status TEXT NOT NULL,
   transcript_status TEXT NOT NULL DEFAULT 'pending',
   prompts_status TEXT NOT NULL DEFAULT 'pending',
@@ -110,9 +111,16 @@ export function db(): DatabaseSync {
     const conn = new DatabaseSync(path.join(DATA_DIR, "playtest.sqlite"));
     conn.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;");
     conn.exec(SCHEMA);
+    migrate(conn);
     globalForDb.__playtestDb = conn;
   }
   return globalForDb.__playtestDb;
+}
+
+/** Additive migrations for databases created by older versions of SCHEMA. */
+function migrate(conn: DatabaseSync) {
+  const cols = (table: string) => (conn.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]).map((c) => c.name);
+  if (!cols("sessions").includes("language")) conn.exec("ALTER TABLE sessions ADD COLUMN language TEXT");
 }
 
 type Row = Record<string, unknown>;

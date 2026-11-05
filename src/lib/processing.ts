@@ -50,7 +50,7 @@ export async function processSession(sessionId: string) {
       updateSession(sessionId, { transcript_status: "running" });
       try {
         const file = fs.existsSync(recordingPath(sessionId)) ? recordingPath(sessionId) : null;
-        const t = await transcribeRecording(file);
+        const t = await transcribeRecording(file, s.language);
         tx(() => {
           // Replace, don't append: a retried run must not duplicate transcript rows.
           run("DELETE FROM utterances WHERE session_id=? AND source='voice'", sessionId);

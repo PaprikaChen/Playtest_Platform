@@ -13,7 +13,8 @@ export function TesterApp(props: { token: string; projectName: string; projectDe
   const [consent, setConsent] = useState(false);
   const [wantScreen, setWantScreen] = useState(true);
   const [wantMic, setWantMic] = useState(true);
-  const [captions, setCaptions] = useState(true);
+  // Off by default: the full recording is transcribed after the session; live captions send audio to the browser vendor.
+  const [captions, setCaptions] = useState(false);
   const [error, setError] = useState("");
   const [warnings, setWarnings] = useState<string[]>([]);
   const [sessionId, setSessionId] = useState("");
@@ -87,7 +88,7 @@ export function TesterApp(props: { token: string; projectName: string; projectDe
     setWarnings(cap.warnings);
     const res = await fetch("/api/sessions", {
       method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ token, testerName: name, consent, captureMode: cap.mode, idempotencyKey: idem.current }),
+      body: JSON.stringify({ token, testerName: name, consent, captureMode: cap.mode, idempotencyKey: idem.current, language: navigator.language }),
     });
     const body = await res.json();
     if (!res.ok) { cap.stream?.getTracks().forEach((t) => t.stop()); setStarting(false); return setError(body.error); }
@@ -176,7 +177,7 @@ export function TesterApp(props: { token: string; projectName: string; projectDe
             <label className="flex gap-2"><input type="checkbox" checked={wantScreen} onChange={(e) => setWantScreen(e.target.checked)} /> Screen (pick <b>this tab</b> when asked)</label>
             <label className="flex gap-2"><input type="checkbox" checked={wantMic} onChange={(e) => setWantMic(e.target.checked)} /> Microphone</label>
             {wantMic && canCaption && (
-              <label className="flex gap-2 text-muted"><input type="checkbox" checked={captions} onChange={(e) => setCaptions(e.target.checked)} /> Show live captions of what I say (uses the browser&apos;s speech service)</label>
+              <label className="flex gap-2 text-muted"><input type="checkbox" checked={captions} onChange={(e) => setCaptions(e.target.checked)} /> Also show live captions while I play (optional; sends audio to the browser&apos;s speech service)</label>
             )}
             <p className="text-xs text-muted">Only the developer of this game can see your session. Recordings, transcript and answers are deleted automatically after 7 days. Nothing is filled in for you.</p>
           </div>

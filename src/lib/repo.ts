@@ -148,7 +148,7 @@ export function inviteByToken(token: string) {
 }
 
 // ---------- sessions ----------
-export function createSession(token: string, testerName: string, captureMode: string, idempotencyKey: string | null): SessionRow {
+export function createSession(token: string, testerName: string, captureMode: string, idempotencyKey: string | null, language: string | null = null): SessionRow {
   const inv = inviteByToken(token);
   if (!inv) throw new HttpError(403, "This invite link is invalid or has been turned off.");
   if (idempotencyKey) {
@@ -161,10 +161,10 @@ export function createSession(token: string, testerName: string, captureMode: st
   const id = newId("ses");
   const t = now();
   run(
-    `INSERT INTO sessions (id,invite_id,project_id,build_id,questionnaire_id,tester_name,idempotency_key,capture_mode,status,consent_at,created_at)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+    `INSERT INTO sessions (id,invite_id,project_id,build_id,questionnaire_id,tester_name,idempotency_key,capture_mode,language,status,consent_at,created_at)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
     id, inv.id, inv.project_id, inv.build_id, inv.questionnaire_id, testerName.trim().slice(0, 60) || "Anonymous tester",
-    idempotencyKey, captureMode, "recording", t, t,
+    idempotencyKey, captureMode, language && /^[A-Za-z]{2,3}([-_][A-Za-z0-9]{2,8})*$/.test(language) ? language : null, "recording", t, t,
   );
   return getSession(id)!;
 }

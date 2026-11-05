@@ -34,6 +34,7 @@ export interface SessionRow {
   questionnaire_id: string;
   tester_name: string;
   capture_mode: string;
+  language: string | null;
   status: "recording" | "processing" | "ready" | "failed" | "submitted";
   transcript_status: string;
   prompts_status: string;

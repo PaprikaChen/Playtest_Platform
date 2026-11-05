@@ -37,8 +37,12 @@ Copy `.env.example` to `.env.local`. Without any key the app runs fully with pla
 
 | Stage | Default without keys | With a key |
 |---|---|---|
-| Speech → text | Live browser captions (Chrome Web Speech API) during play | `ASSEMBLYAI_API_KEY`: full post-session transcript replaces live captions |
+| Speech → text (after the session, word timestamps) | **Local Whisper** (`whisper-base_timestamped`, runs in-process, free, private; ~80 MB model downloaded once to `.models/`) | `TRANSCRIBE_PROVIDER=openai` (`OPENAI_API_KEY`, whisper-1) or `assemblyai` (`ASSEMBLYAI_API_KEY`) |
 | Comment → question matching | Keyword/synonym matcher (marked "placeholder" in UI) | `RECALL_PROVIDER=gemini\|openai\|anthropic` plus that provider's key; `RECALL_MODEL` overrides the model |
+
+Transcripts are word-level, grouped into sentences, so replay starts within 1 s of speech (tested against the audio's real
+speech onsets in `tests/transcribe.test.ts`). The tester's browser language is passed through (English and Mandarin are
+tested). Optional live browser captions are off by default.
 
 Recall uses **one LLM call per session** (all questions and all comments in one compact prompt, JSON out) to keep token use low. Model output may only reference comment IDs; quotes shown to testers always come from the stored comment, so the model can't rewrite what someone said.
 

@@ -84,6 +84,10 @@ test("creator setup → tester plays with screen + mic → recall questionnaire 
   const cards = tester.getByRole("button", { name: "Add to my answer" });
   log.recallCards = await cards.count();
   expect(log.recallCards).toBeGreaterThan(0);
+  // Voice → transcript → recall card: something the tester only *said* must appear as a card.
+  await expect(tester.getByText("you said").first()).toBeVisible();
+  log.spokenCards = await tester.locator("p", { hasText: "you said" }).allInnerTexts();
+  expect((log.spokenCards as string[]).join(" ").toLowerCase()).toMatch(/too hard|floaty|where to go/);
   await cards.first().click();
   await shot(tester, "e2e-4-recall-questionnaire");
 
@@ -126,6 +130,7 @@ test("creator setup → tester plays with screen + mic → recall questionnaire 
   await expect(page.getByRole("heading", { name: "Sam" })).toBeVisible();
   const timeline = page.locator("aside ol li");
   log.timeline = await timeline.allInnerTexts();
+  expect((log.timeline as string[]).some((t) => t.includes("transcript") && /jump is way too hard/i.test(t))).toBe(true);
   await shot(page, "e2e-5-developer-review");
 
   fs.writeFileSync(path.join(SHOTS, "e2e-run.json"), JSON.stringify(log, null, 2));

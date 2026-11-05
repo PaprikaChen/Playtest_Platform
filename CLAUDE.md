@@ -23,7 +23,7 @@ Node ≥ 22.5 (built-in `node:sqlite`). Data goes in `./data` (git-ignored). Sam
 - `src/lib/db.ts`: SQLite schema. It mirrors the planned Supabase tables, so keep the two in sync (see `docs/decisions/0001`).
 - `src/lib/repo.ts`: all data access and **all access checks** (`requireTesterSession`, invite scoping, retention purge).
 - `src/lib/processing.ts`: async pipeline: chunks → recording → transcript → recall prompts.
-- `src/lib/ai/`: provider adapters. `recall.ts` makes **one call per session**; output is sanitised against real IDs.
+- `src/lib/ai/`: provider adapters. `transcribe.ts` produces word timestamps → `groupWords` segments (local Whisper default). `recall.ts` makes **one call per session**; output is sanitised against real IDs.
 - `src/app/api/**`: route handlers wrapped in `route()` from `src/lib/http.ts` (JSON errors via `HttpError`).
 - `src/app/t/[token]/`: tester flow. `src/app/projects/[id]/` and `src/app/sessions/[id]/`: creator flow.
 - `tests/`: vitest. `tests/fixtures/`: small binary fixtures (real MediaRecorder WebM).
@@ -47,6 +47,8 @@ Node ≥ 22.5 (built-in `node:sqlite`). Data goes in `./data` (git-ignored). Sam
 - The Claude desktop in-app browser blocks iframes and cannot use the screen-share picker. Use `npm run e2e` (real Chrome).
 - Chrome's Web Speech API does **not** hear `--use-file-for-fake-audio-capture` (always `no-speech`), so live captions
   can't be tested automatically. The recording's audio track can be, and the E2E checks it.
+- Local Whisper needs the `_timestamped` ONNX export for word timestamps. Plain exports only give coarse ~7 s segments.
+- Whisper outputs Traditional Chinese for Mandarin; tests accept both scripts.
 - A MediaRecorder keeps recording when one track ends. Don't stop it when screen sharing ends, or the mic is lost.
 
 ## Workflow (every change)
