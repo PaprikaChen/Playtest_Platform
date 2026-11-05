@@ -1,0 +1,4 @@
+html, body { margin: 0; background: #111522; color: #e8e6df; font-family: system-ui, sans-serif; text-align: center; }
+#hud { padding: 8px; font-size: 15px; letter-spacing: .02em; }
+canvas { background: #1b2136; display: block; margin: 0 auto; max-width: 100%; border-radius: 6px; }
+#help { font-size: 13px; opacity: .7; }

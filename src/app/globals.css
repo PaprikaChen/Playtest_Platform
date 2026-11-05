@@ -1,0 +1,53 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f7f6f2;
+  --surface: #ffffff;
+  --foreground: #1d1c1a;
+  --muted: #6b6860;
+  --line: #e4e1d8;
+  --accent: #2f5bd3;
+  --accent-soft: #e8eefc;
+  --warn: #a15c00;
+  --warn-soft: #fff3df;
+  --ok: #1f7a4d;
+  --ok-soft: #e3f4ea;
+  --bad: #b42318;
+  --bad-soft: #fde8e6;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-bad: var(--bad);
+  --color-bad-soft: var(--bad-soft);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+@layer components {
+  .card { @apply bg-surface border border-line rounded-xl p-5; }
+  .btn { @apply inline-flex items-center justify-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer; }
+  .btn-primary { @apply inline-flex items-center justify-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-accent text-white hover:bg-[#244ab0]; }
+  .btn-ghost { @apply inline-flex items-center justify-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer border border-line bg-surface hover:bg-background; }
+  .btn-danger { @apply inline-flex items-center justify-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer border border-bad/30 text-bad bg-surface hover:bg-bad-soft; }
+  .input { @apply w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/20; }
+  .label { @apply block text-xs font-medium text-muted mb-1; }
+  .pill { @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium; }
+  .h2 { @apply text-base font-semibold; }
+}
