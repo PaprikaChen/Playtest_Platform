@@ -50,7 +50,7 @@ async function sha256(buf: ArrayBuffer) {
   return [...new Uint8Array(h)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-export interface UploadStats { sent: number; pending: number; failedAttempts: number; bytes: number }
+export interface UploadStats { sent: number; pending: number; retrying: boolean; bytes: number }
 
 /**
  * Sequential uploader with retries. Each chunk keeps its sequence number, so a
@@ -60,16 +60,22 @@ export class ChunkUploader {
   private queue: { seq: number; blob: Blob }[] = [];
   private running = false;
   private idle: (() => void)[] = [];
-  stats: UploadStats = { sent: 0, pending: 0, failedAttempts: 0, bytes: 0 };
+  private consecutiveFailures = 0;
+  stats: UploadStats = { sent: 0, pending: 0, retrying: false, bytes: 0 };
   nextSeq = 0;
 
   constructor(private sessionId: string, private token: string, private onChange: (s: UploadStats) => void) {}
 
+  private emit() {
+    this.stats.pending = this.queue.length;
+    this.stats.retrying = this.consecutiveFailures > 0;
+    this.onChange({ ...this.stats });
+  }
+
   push(blob: Blob) {
     if (!blob.size) return;
     this.queue.push({ seq: this.nextSeq++, blob });
-    this.stats.pending = this.queue.length;
-    this.onChange({ ...this.stats });
+    this.emit();
     void this.pump();
   }
 
@@ -89,13 +95,13 @@ export class ChunkUploader {
         this.queue.shift();
         this.stats.sent++;
         this.stats.bytes += buf.byteLength;
+        this.consecutiveFailures = 0; // backoff restarts from 1 s after any success
       } catch {
-        this.stats.failedAttempts++;
-        this.onChange({ ...this.stats, pending: this.queue.length });
-        await new Promise((r) => setTimeout(r, Math.min(8000, 1000 * 2 ** Math.min(this.stats.failedAttempts, 3))));
+        this.consecutiveFailures++;
+        this.emit();
+        await new Promise((r) => setTimeout(r, Math.min(8000, 1000 * 2 ** Math.min(this.consecutiveFailures - 1, 3))));
       }
-      this.stats.pending = this.queue.length;
-      this.onChange({ ...this.stats });
+      this.emit();
     }
     this.running = false;
     this.idle.splice(0).forEach((f) => f());
@@ -117,29 +123,65 @@ type SR = {
 export function speechRecognitionSupported() {
   return typeof window !== "undefined" && Boolean((window as unknown as Record<string, unknown>).webkitSpeechRecognition || (window as unknown as Record<string, unknown>).SpeechRecognition);
 }
-export function startLiveCaptions(now: () => number, onFinal: (text: string, startMs: number, endMs: number) => void): () => void {
+
+export type CaptionStatus = "listening" | "hearing" | "unavailable";
+
+/**
+ * Live captions. Returns stop(), which resolves after the recogniser has
+ * delivered its last final result (or 2 s), so no phrase is lost at Finish.
+ * Persistent errors (network, blocked service) stop retrying and report "unavailable".
+ */
+export function startLiveCaptions(
+  now: () => number,
+  onFinal: (text: string, startMs: number, endMs: number) => void,
+  onStatus: (s: CaptionStatus, detail?: string) => void = () => {},
+): () => Promise<void> {
   const W = window as unknown as Record<string, new () => SR>;
   const Ctor = W.SpeechRecognition ?? W.webkitSpeechRecognition;
-  if (!Ctor) return () => {};
+  if (!Ctor) { onStatus("unavailable", "not supported in this browser"); return async () => {}; }
   let stopped = false;
   let phraseStart: number | null = null;
+  let quickFailures = 0;
+  let startedAt = 0;
+  let ended: (() => void) | null = null;
   const rec = new Ctor();
   rec.continuous = true;
   rec.interimResults = true;
   rec.lang = navigator.language || "en-US";
+  const begin = () => { startedAt = Date.now(); try { rec.start(); } catch { /* already started */ } };
   rec.onresult = (e) => {
+    quickFailures = 0;
     for (let i = e.resultIndex; i < e.results.length; i++) {
       const r = e.results[i];
-      if (phraseStart === null) phraseStart = Math.max(0, now() - 1500); // speech began a moment before the first result
+      // Chrome emits the first interim result ~0.5–1.5 s after speech begins.
+      if (phraseStart === null) { phraseStart = Math.max(0, now() - 1000); onStatus("hearing"); }
       if (r.isFinal) {
         const text = r[0].transcript.trim();
         if (text) onFinal(text, phraseStart, now());
         phraseStart = null;
+        onStatus("listening");
       }
     }
   };
-  rec.onerror = (e) => { if (e.error === "not-allowed") stopped = true; };
-  rec.onend = () => { if (!stopped) try { rec.start(); } catch { /* already started */ } };
-  try { rec.start(); } catch { /* ignore */ }
-  return () => { stopped = true; rec.stop(); };
+  rec.onerror = (e) => {
+    if (e.error === "no-speech" || e.error === "aborted") return; // normal: silence or our own stop()
+    if (e.error === "not-allowed" || e.error === "service-not-allowed") { stopped = true; onStatus("unavailable", e.error); return; }
+    quickFailures++;
+    if (quickFailures >= 3) { stopped = true; onStatus("unavailable", e.error); }
+  };
+  rec.onend = () => {
+    if (stopped) { ended?.(); return; }
+    // Back off if the recogniser keeps ending immediately.
+    const delay = Date.now() - startedAt < 1000 ? 1000 : 0;
+    setTimeout(begin, delay);
+  };
+  begin();
+  onStatus("listening");
+  return () => new Promise<void>((resolve) => {
+    if (stopped) return resolve();
+    stopped = true;
+    ended = resolve;
+    setTimeout(resolve, 2000);
+    try { rec.stop(); } catch { resolve(); }
+  });
 }

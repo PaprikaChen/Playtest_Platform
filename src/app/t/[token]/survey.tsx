@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ClipPlayer } from "@/components/clip-player";
 import { fmtTime } from "@/components/ui";
 import type { Question } from "@/lib/types";
@@ -19,28 +19,57 @@ export function Survey({ token, sessionId, projectName, audioOnly, onSubmitted }
   const [error, setError] = useState("");
   const headers = { "content-type": "application/json", "x-invite-token": token };
 
+  const [saved, setSaved] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const loaded = useRef(false);
+  const dirty = useRef(false);
+
   useEffect(() => {
     let stop = false;
-    let tries = 0;
+    let delay = 2000;
     async function poll() {
-      const res = await fetch(`/api/sessions/${sessionId}/recall-prompts`, { headers: { "x-invite-token": token } });
-      if (!res.ok || stop) return;
-      const body = await res.json();
-      setQuestions(body.questionnaire.questions);
-      setTitle(body.questionnaire.title);
-      setStatus(body.status);
-      setHasRecording(body.hasRecording);
-      setPrompts(body.prompts);
-      const settled = ["done", "failed"].includes(body.status.prompts);
-      // Poll for up to ~2 minutes; the questionnaire is usable the whole time.
-      if (!settled && tries++ < 60) setTimeout(poll, 2000);
+      const res = await fetch(`/api/sessions/${sessionId}/recall-prompts`, { headers: { "x-invite-token": token } }).catch(() => null);
+      if (stop) return;
+      if (res?.ok) {
+        const body = await res.json();
+        setQuestions(body.questionnaire.questions);
+        setTitle(body.questionnaire.title);
+        setStatus(body.status);
+        setHasRecording(body.hasRecording);
+        setPrompts(body.prompts);
+        if (!loaded.current) {
+          // Restore saved drafts once (after a reload); never overwrite what the tester is typing.
+          loaded.current = true;
+          setAnswers(Object.fromEntries((body.answers as (Ans & { questionId: string })[]).map(({ questionId, ...a }) => [questionId, a])));
+        }
+        if (["done", "failed"].includes(body.status.prompts)) return;
+      }
+      // Keep polling while the page is open (long transcripts can take minutes), backing off to 10 s.
+      setTimeout(poll, delay);
+      delay = Math.min(10000, delay * 1.5);
     }
     void poll();
     return () => { stop = true; };
   }, [sessionId, token]);
 
+  // Autosave drafts 1 s after the last edit.
+  useEffect(() => {
+    if (!loaded.current || !dirty.current) return;
+    const t = setTimeout(async () => {
+      setSaved("saving");
+      const res = await fetch(`/api/sessions/${sessionId}/answers`, {
+        method: "POST", headers: { "content-type": "application/json", "x-invite-token": token },
+        body: JSON.stringify({ submit: false, answers: Object.entries(answers).map(([questionId, a]) => ({ questionId, ...a })) }),
+      }).catch(() => null);
+      setSaved(res?.ok ? "saved" : "error");
+    }, 1000);
+    return () => clearTimeout(t);
+  }, [answers, sessionId, token]);
+
   const ans = (qid: string): Ans => answers[qid] ?? { text: "", rating: null, promptIds: [] };
-  const setAns = (qid: string, patch: Partial<Ans>) => setAnswers((a) => ({ ...a, [qid]: { ...ans(qid), ...patch } }));
+  const setAns = (qid: string, patch: Partial<Ans>) => {
+    dirty.current = true;
+    setAnswers((all) => ({ ...all, [qid]: { ...(all[qid] ?? { text: "", rating: null, promptIds: [] }), ...patch } }));
+  };
 
   function setPromptState(p: Prompt, state: "inserted" | "dismissed" | "shown") {
     setPrompts((ps) => ps.map((x) => (x.id === p.id ? { ...x, state } : x)));
@@ -74,7 +103,7 @@ export function Survey({ token, sessionId, projectName, audioOnly, onSubmitted }
         <h1 className="text-2xl font-semibold tracking-tight">{title || "Questionnaire"}</h1>
       </div>
       <div className={`rounded-lg p-3 text-sm ${pending ? "bg-warn-soft text-warn" : status?.prompts === "failed" ? "bg-bad-soft text-bad" : "bg-accent-soft text-accent"}`}>
-        {pending && "Finding the moments you commented on… You can start answering now; reminders will appear under each question."}
+        {pending && "Finding the moments you commented on… You can start answering (and even submit) now; reminders will appear under each question when ready."}
         {status?.prompts === "done" && `Reminders are based only on what you said or typed. They're suggestions: insert, edit or dismiss them. Nothing is filled in for you.${status.provider?.includes("placeholder") ? " (Alpha: keyword-matching placeholder instead of the AI model.)" : ""}`}
         {status?.prompts === "failed" && "Reminders couldn't be generated this time. Your answers still work as normal."}
       </div>
@@ -120,6 +149,7 @@ export function Survey({ token, sessionId, projectName, audioOnly, onSubmitted }
         );
       })}
       {error && <p className="text-sm text-bad">{error}</p>}
+      <p className="text-xs text-muted text-center">{saved === "saving" ? "Saving draft…" : saved === "saved" ? "Draft saved. You can safely reload this page." : saved === "error" ? "Couldn't save draft; check your connection." : ""}</p>
       <button className="btn-primary w-full py-2.5" disabled={busy || !questions.length} onClick={submit}>{busy ? "Submitting…" : "Submit feedback"}</button>
     </main>
   );

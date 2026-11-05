@@ -3,5 +3,5 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   resolve: { alias: { "@": path.resolve(__dirname, "src") } },
-  test: { environment: "node", pool: "forks" },
+  test: { environment: "node", pool: "forks", include: ["tests/**/*.test.ts"] },
 });

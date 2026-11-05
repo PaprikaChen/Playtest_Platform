@@ -1,10 +1,10 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { fmtTime } from "@/components/ui";
-import { ChunkUploader, pickMime, requestCapture, speechRecognitionSupported, startLiveCaptions, type CaptureMode, type UploadStats } from "./recorder";
+import { ChunkUploader, pickMime, requestCapture, speechRecognitionSupported, startLiveCaptions, type CaptionStatus, type CaptureMode, type UploadStats } from "./recorder";
 
 type Stage = "intro" | "playing" | "finishing";
-interface Comment { text: string; start_ms: number; source: "typed" | "voice-live"; synced: boolean }
+interface Comment { id: number; text: string; start_ms: number; end_ms: number; source: "typed" | "voice-live"; state: "saving" | "saved" | "failed" }
 
 export function TesterApp(props: { token: string; projectName: string; projectDescription: string; buildLabel: string; gameUrl: string; questionCount: number }) {
   const { token } = props;
@@ -19,7 +19,9 @@ export function TesterApp(props: { token: string; projectName: string; projectDe
   const [sessionId, setSessionId] = useState("");
   const [mode, setMode] = useState<CaptureMode>("comments-only");
   const [elapsed, setElapsed] = useState(0);
-  const [upload, setUpload] = useState<UploadStats>({ sent: 0, pending: 0, failedAttempts: 0, bytes: 0 });
+  const [upload, setUpload] = useState<UploadStats>({ sent: 0, pending: 0, retrying: false, bytes: 0 });
+  const [starting, setStarting] = useState(false);
+  const [captionStatus, setCaptionStatus] = useState<{ s: CaptionStatus; detail?: string } | null>(null);
   const [recording, setRecording] = useState(false);
   const [comments, setComments] = useState<Comment[]>([]);
   const [draft, setDraft] = useState("");
@@ -32,7 +34,11 @@ export function TesterApp(props: { token: string; projectName: string; projectDe
   const recorder = useRef<MediaRecorder | null>(null);
   const stream = useRef<MediaStream | null>(null);
   const uploader = useRef<ChunkUploader | null>(null);
-  const stopCaptions = useRef<() => void>(() => {});
+  const stopCaptions = useRef<() => Promise<void>>(async () => {});
+  // Source of truth for comments (state is only for rendering), plus in-flight saves.
+  const commentsRef = useRef<Comment[]>([]);
+  const inflight = useRef(new Set<Promise<unknown>>());
+  const nextCommentId = useRef(0);
   const idem = useRef(typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : String(Math.random()));
   const stopped = useRef(false);
   const now = useCallback(() => Math.round(performance.now() - t0.current), []);
@@ -54,18 +60,28 @@ export function TesterApp(props: { token: string; projectName: string; projectDe
   const postComments = useCallback(async (sid: string, items: Comment[]) => {
     const res = await fetch(`/api/sessions/${sid}/comments`, {
       method: "POST", headers: { "content-type": "application/json", "x-invite-token": token },
-      body: JSON.stringify({ items: items.map((c) => ({ text: c.text, start_ms: c.start_ms, end_ms: c.start_ms, source: c.source })) }),
+      body: JSON.stringify({ items: items.map((c) => ({ text: c.text, start_ms: c.start_ms, end_ms: c.end_ms, source: c.source })) }),
     });
     return res.ok;
   }, [token]);
 
-  const addComment = useCallback((c: Omit<Comment, "synced">, sid: string) => {
-    const item = { ...c, synced: false };
-    setComments((cs) => [...cs, item]);
-    void postComments(sid, [item]).then((ok) => ok && setComments((cs) => cs.map((x) => (x === item ? { ...x, synced: true } : x))));
+  const setCommentState = (id: number, state: Comment["state"]) => {
+    commentsRef.current = commentsRef.current.map((c) => (c.id === id ? { ...c, state } : c));
+    setComments(commentsRef.current);
+  };
+
+  const addComment = useCallback((c: Omit<Comment, "state" | "id">, sid: string) => {
+    const item: Comment = { ...c, id: nextCommentId.current++, state: "saving" };
+    commentsRef.current = [...commentsRef.current, item];
+    setComments(commentsRef.current);
+    const p = postComments(sid, [item]).catch(() => false).then((ok) => setCommentState(item.id, ok ? "saved" : "failed"));
+    inflight.current.add(p);
+    void p.finally(() => inflight.current.delete(p));
   }, [postComments]);
 
   async function start() {
+    if (starting) return;
+    setStarting(true);
     setError("");
     const cap = await requestCapture(wantScreen, wantMic);
     setWarnings(cap.warnings);
@@ -74,7 +90,7 @@ export function TesterApp(props: { token: string; projectName: string; projectDe
       body: JSON.stringify({ token, testerName: name, consent, captureMode: cap.mode, idempotencyKey: idem.current }),
     });
     const body = await res.json();
-    if (!res.ok) { cap.stream?.getTracks().forEach((t) => t.stop()); return setError(body.error); }
+    if (!res.ok) { cap.stream?.getTracks().forEach((t) => t.stop()); setStarting(false); return setError(body.error); }
     const sid = body.session.id as string;
     setSessionId(sid);
     setMode(cap.mode);
@@ -88,15 +104,20 @@ export function TesterApp(props: { token: string; projectName: string; projectDe
       rec.ondataavailable = (e) => uploader.current?.push(e.data);
       rec.onstart = () => { t0.current = performance.now(); setRecording(true); };
       rec.onstop = () => setRecording(false);
+      // If the tester stops sharing, keep recording the mic: MediaRecorder continues
+      // with the remaining audio track and the video simply freezes on the last frame.
       cap.stream.getVideoTracks()[0]?.addEventListener("ended", () => {
-        setWarnings((w) => [...w, "Screen sharing stopped. Recording has ended, but you can keep playing and typing comments."]);
-        if (rec.state !== "inactive") rec.stop();
+        setWarnings((w) => [...w, cap.mode === "screen" ? "Screen sharing stopped, so the rest of the session has no video. Typed comments still work." : "Screen sharing stopped. Your voice is still being recorded and comments still work."]);
       });
       rec.start(5000);
       recorder.current = rec;
     }
     if (captions && cap.mode.includes("mic") && speechRecognitionSupported()) {
-      stopCaptions.current = startLiveCaptions(now, (text, s) => addComment({ text, start_ms: s, source: "voice-live" }, sid));
+      stopCaptions.current = startLiveCaptions(
+        now,
+        (text, s, e) => addComment({ text, start_ms: s, end_ms: e, source: "voice-live" }, sid),
+        (st, detail) => setCaptionStatus({ s: st, detail }),
+      );
     }
     setStage("playing");
   }
@@ -104,15 +125,18 @@ export function TesterApp(props: { token: string; projectName: string; projectDe
   function submitComment() {
     const text = draft.trim();
     if (!text) return;
-    addComment({ text, start_ms: draftStart.current ?? now(), source: "typed" }, sessionId);
+    const t = draftStart.current ?? now();
+    addComment({ text, start_ms: t, end_ms: t, source: "typed" }, sessionId);
     setDraft("");
     draftStart.current = null;
   }
 
   async function finish() {
     setStage("finishing");
-    stopCaptions.current();
     const durationMs = now();
+    // Wait for the recogniser's last phrase so nothing said right before Finish is lost.
+    setFinishMsg("Saving your last comments…");
+    await stopCaptions.current();
     const rec = recorder.current;
     if (rec && rec.state !== "inactive") {
       setFinishMsg("Saving the last part of the recording…");
@@ -120,9 +144,10 @@ export function TesterApp(props: { token: string; projectName: string; projectDe
     }
     stream.current?.getTracks().forEach((t) => t.stop());
     if (uploader.current) { setFinishMsg("Uploading recording…"); await uploader.current.flush(); }
-    // Retry any comments that failed to sync.
-    const unsynced = comments.filter((c) => !c.synced);
-    if (unsynced.length) await postComments(sessionId, unsynced);
+    // Let in-flight saves settle, then retry only the ones that actually failed (no duplicates).
+    await Promise.allSettled([...inflight.current]);
+    const failed = commentsRef.current.filter((c) => c.state === "failed");
+    if (failed.length && (await postComments(sessionId, failed).catch(() => false))) failed.forEach((c) => setCommentState(c.id, "saved"));
     setFinishMsg("Preparing your questionnaire…");
     const res = await fetch(`/api/sessions/${sessionId}/complete`, {
       method: "POST", headers: { "content-type": "application/json", "x-invite-token": token },
@@ -161,7 +186,7 @@ export function TesterApp(props: { token: string; projectName: string; projectDe
           </div>
           <label className="flex gap-2 text-sm"><input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} /> I agree to the recording described above.</label>
           {error && <p className="text-sm text-bad">{error}</p>}
-          <button className="btn-primary w-full py-2.5" disabled={!consent} onClick={start}>Start playtest</button>
+          <button className="btn-primary w-full py-2.5" disabled={!consent || starting} onClick={start}>{starting ? "Waiting for screen & mic permission…" : "Start playtest"}</button>
         </div>
       </main>
     );
@@ -189,17 +214,22 @@ export function TesterApp(props: { token: string; projectName: string; projectDe
           <p className="text-xs text-muted">
             {mode === "comments-only" ? "No screen or mic capture." : `Mode: ${mode} · uploaded ${upload.sent} part${upload.sent === 1 ? "" : "s"}`}
             {upload.pending > 0 && ` · ${upload.pending} waiting`}
-            {upload.failedAttempts > 0 && upload.pending > 0 && " · retrying…"}
+            {upload.retrying && " · connection problem, retrying…"}
           </p>
+          {captionStatus && (
+            <p className={`text-xs ${captionStatus.s === "unavailable" ? "text-warn" : "text-muted"}`}>
+              {captionStatus.s === "hearing" ? "🎙 Hearing you…" : captionStatus.s === "listening" ? "🎙 Live captions on: speak any time" : `🎙 Live captions unavailable (${captionStatus.detail}). Your voice is still recorded.`}
+            </p>
+          )}
           {warnings.map((w, i) => <p key={i} className="text-xs rounded bg-warn-soft text-warn p-2">{w}</p>)}
         </div>
         <div className="flex-1 overflow-y-auto p-4 space-y-2">
           {comments.length === 0 && <p className="text-sm text-muted">Say what you&apos;re thinking, or type a note below. Each note is pinned to this moment in the recording.</p>}
-          {comments.map((c, i) => (
-            <div key={i} className="text-sm rounded-lg bg-background p-2">
+          {comments.map((c) => (
+            <div key={c.id} className="text-sm rounded-lg bg-background p-2">
               <div className="flex justify-between text-xs text-muted mb-0.5">
                 <span>{c.source === "typed" ? "✎ typed" : "🎙 said"}</span>
-                <span className="font-mono">{fmtTime(c.start_ms)}{c.synced ? "" : " · saving"}</span>
+                <span className="font-mono">{fmtTime(c.start_ms)}{c.state === "saving" ? " · saving" : c.state === "failed" ? " · will retry" : ""}</span>
               </div>
               {c.text}
             </div>

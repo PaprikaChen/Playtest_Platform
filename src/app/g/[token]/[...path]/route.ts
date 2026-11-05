@@ -24,7 +24,7 @@ export async function GET(_req: Request, { params }: Ctx) {
   const { token, path: parts } = await params;
   const inv = inviteByToken(token);
   if (!inv) return new Response("Invite not found or disabled.", { status: 403 });
-  const rel = parts.map(decodeURIComponent).join("/");
+  const rel = parts.join("/"); // Next has already decoded each segment
   const file = safeJoin(buildDir(inv.build_id), rel);
   if (!file || !fs.existsSync(file) || !fs.statSync(file).isFile()) return new Response("Not found", { status: 404 });
 

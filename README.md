@@ -11,7 +11,8 @@ See `project_proposal.pdf` and `playtest_feedback_technical_spec (3).pdf` for th
 ```bash
 npm install
 npm run dev          # http://localhost:3000
-npm test             # vitest: ZIP validation, recall sanitising, WebM fix, full flow
+npm test             # vitest: ZIP validation, zip-bomb cap, recall sanitising, WebM fix, full flow
+npm run e2e          # Playwright in real Chrome with a fake screen + a fake mic playing synthesized speech
 npm run typecheck && npm run lint
 ```
 

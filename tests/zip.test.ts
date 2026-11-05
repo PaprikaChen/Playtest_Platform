@@ -39,6 +39,16 @@ describe("validateBuildZip", () => {
     expect(r.ok).toBe(false);
   });
 
+  it("readEntryCapped aborts a zip bomb without buffering it", async () => {
+    const { readEntryCapped } = await import("@/lib/zip");
+    const z = new JSZip();
+    z.file("index.html", "x");
+    z.file("bomb.bin", new Uint8Array(5 * 1024 * 1024)); // 5 MB of zeros compresses to ~5 KB
+    const loaded = await JSZip.loadAsync(await z.generateAsync({ type: "uint8array", compression: "DEFLATE" }));
+    await expect(readEntryCapped(loaded.file("bomb.bin")!, 1024 * 1024)).rejects.toThrow(/larger than/);
+    await expect(readEntryCapped(loaded.file("index.html")!, 1024)).resolves.toHaveLength(1);
+  });
+
   it("rejects non-zip data", async () => {
     const r = await validateBuildZip(new TextEncoder().encode("not a zip"));
     expect(r.ok).toBe(false);

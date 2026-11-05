@@ -43,3 +43,7 @@ next-env.d.ts
 .env*.local
 !.env.example
 /.next-build/
+/.e2e-data/
+/.next-e2e/
+/test-results/
+/playwright-report/

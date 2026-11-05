@@ -5,7 +5,7 @@ import { all, get, run, tx } from "./db";
 import { buildDir, safeJoin, sessionDir } from "./paths";
 import type { Question, RecallPrompt, SessionRow, Utterance } from "./types";
 import { RETENTION_MS } from "./types";
-import { validateBuildZip, ZIP_LIMITS } from "./zip";
+import { readEntryCapped, validateBuildZip, ZIP_LIMITS, ZipLimitError } from "./zip";
 
 export const newId = (prefix: string) => `${prefix}_${crypto.randomBytes(8).toString("hex")}`;
 const now = () => Date.now();
@@ -51,10 +51,11 @@ export async function createBuild(projectId: string, label: string, originalName
     for (const e of v.entries) {
       const target = safeJoin(root, e.path);
       if (!target) throw new HttpError(422, `Unsafe path in ZIP: ${e.path}`);
-      const buf = await e.file.async("nodebuffer");
+      // Declared sizes can lie; enforce the real limit while inflating, not after.
+      const buf = await readEntryCapped(e.file, ZIP_LIMITS.maxUncompressedBytes - written).catch((err) => {
+        throw err instanceof ZipLimitError ? new HttpError(422, err.message) : err;
+      });
       written += buf.byteLength;
-      // Declared sizes can lie; enforce the real limit while extracting.
-      if (written > ZIP_LIMITS.maxUncompressedBytes) throw new HttpError(422, "Uncompressed build is larger than 200 MB.");
       fs.mkdirSync(path.dirname(target), { recursive: true });
       fs.writeFileSync(target, buf);
     }

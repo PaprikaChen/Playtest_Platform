@@ -68,3 +68,36 @@ export async function validateBuildZip(data: Uint8Array): Promise<ZipValidation 
 
   return { ok: true, entries, entryPath: entry.path, totalBytes };
 }
+
+/**
+ * Inflate one entry as a stream, aborting as soon as it exceeds `budget` bytes.
+ * Declared sizes in the ZIP header can lie (zip bombs), so we never trust them
+ * for allocation: the whole entry is never buffered past the limit.
+ */
+export function readEntryCapped(file: JSZip.JSZipObject, budget: number): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const parts: Uint8Array[] = [];
+    let size = 0;
+    let done = false;
+    // internalStream is public JSZip API (v3) but missing from its type definitions.
+    type Stream = { on(ev: string, fn: (x: never) => void): Stream; pause(): Stream; resume(): Stream };
+    const stream = (file as unknown as { internalStream(t: "uint8array"): Stream }).internalStream("uint8array");
+    stream
+      .on("data", (chunk: Uint8Array) => {
+        if (done) return;
+        size += chunk.byteLength;
+        if (size > budget) {
+          done = true;
+          stream.pause();
+          reject(new ZipLimitError("Uncompressed build is larger than 200 MB."));
+          return;
+        }
+        parts.push(chunk);
+      })
+      .on("error", (e: Error) => { if (!done) { done = true; reject(e); } })
+      .on("end", () => { if (!done) { done = true; resolve(Buffer.concat(parts)); } })
+      .resume();
+  });
+}
+
+export class ZipLimitError extends Error {}

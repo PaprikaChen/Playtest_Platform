@@ -15,6 +15,7 @@ npm test            # vitest (must pass before any commit)
 npm run typecheck   # tsc --noEmit
 npm run lint        # eslint
 npm run build       # production build (CI runs this)
+npm run e2e         # Playwright, real Chrome, fake screen + mic (e2e/fixtures/speech.wav); writes docs/screenshots/e2e-*.png
 ```
 Node ≥ 22.5 (built-in `node:sqlite`). Data goes in `./data` (git-ignored). Sample build: `samples/lantern-hop.zip`.
 
@@ -43,7 +44,10 @@ Node ≥ 22.5 (built-in `node:sqlite`). Data goes in `./data` (git-ignored). Sam
 - Tailwind v4: a custom class cannot `@apply` another custom class.
 - Anything using `window` / browser APIs in a client component must read it in `useEffect`, or hydration fails.
 - `ts-ebml` returns pooled `ArrayBuffer`s; `webm.ts` disables `Buffer.poolSize` around the call.
-- The Claude desktop in-app browser blocks iframes and cannot use the screen-share picker. Test the play screen in Chrome.
+- The Claude desktop in-app browser blocks iframes and cannot use the screen-share picker. Use `npm run e2e` (real Chrome).
+- Chrome's Web Speech API does **not** hear `--use-file-for-fake-audio-capture` (always `no-speech`), so live captions
+  can't be tested automatically. The recording's audio track can be, and the E2E checks it.
+- A MediaRecorder keeps recording when one track ends. Don't stop it when screen sharing ends, or the mic is lost.
 
 ## Workflow (every change)
 1. Work from a GitHub issue with **acceptance criteria** (use the issue template). Branch: `feat/<issue#>-slug`, `fix/…`, `chore/…`.

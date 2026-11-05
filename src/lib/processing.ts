@@ -31,6 +31,7 @@ export function assembleRecording(sessionId: string, expectedChunks: number, dur
 }
 
 const inflight = new Set<string>();
+export const isProcessing = (sessionId: string) => inflight.has(sessionId);
 
 /**
  * Async pipeline after a session ends: transcript -> recall prompts.
@@ -44,18 +45,25 @@ export async function processSession(sessionId: string) {
     if (!s) return;
     const q = getQuestionnaire(s.questionnaire_id)!;
 
-    updateSession(sessionId, { transcript_status: "running" });
-    try {
-      const file = fs.existsSync(recordingPath(sessionId)) ? recordingPath(sessionId) : null;
-      const t = await transcribeRecording(file);
-      if (t.segments.length) {
-        // A full transcript supersedes the rough live captions.
-        tx(() => run("DELETE FROM utterances WHERE session_id=? AND source='voice-live'", sessionId));
-        addUtterances(sessionId, t.segments.map((seg) => ({ source: "voice" as const, ...seg })));
+    // Resumable: a stage that already finished is not repeated (avoids duplicate transcript rows).
+    if (!["done", "skipped", "failed"].includes(s.transcript_status)) {
+      updateSession(sessionId, { transcript_status: "running" });
+      try {
+        const file = fs.existsSync(recordingPath(sessionId)) ? recordingPath(sessionId) : null;
+        const t = await transcribeRecording(file);
+        tx(() => {
+          // Replace, don't append: a retried run must not duplicate transcript rows.
+          run("DELETE FROM utterances WHERE session_id=? AND source='voice'", sessionId);
+          if (t.segments.length) {
+            // A full transcript supersedes the rough live captions.
+            run("DELETE FROM utterances WHERE session_id=? AND source='voice-live'", sessionId);
+          }
+        });
+        if (t.segments.length) addUtterances(sessionId, t.segments.map((seg) => ({ source: "voice" as const, ...seg })));
+        updateSession(sessionId, { transcript_status: t.placeholder ? "skipped" : "done" });
+      } catch (e) {
+        updateSession(sessionId, { transcript_status: "failed", processing_error: String((e as Error).message ?? e) });
       }
-      updateSession(sessionId, { transcript_status: t.placeholder ? "skipped" : "done" });
-    } catch (e) {
-      updateSession(sessionId, { transcript_status: "failed", processing_error: String((e as Error).message ?? e) });
     }
 
     updateSession(sessionId, { prompts_status: "running" });

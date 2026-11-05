@@ -1,12 +1,15 @@
 import { run } from "@/lib/db";
 import { json, route, testerToken } from "@/lib/http";
-import { getQuestionnaire, HttpError, listPrompts, listUtterances, requireTesterSession } from "@/lib/repo";
+import { isProcessing, processSession } from "@/lib/processing";
+import { getQuestionnaire, HttpError, listAnswers, listPrompts, listUtterances, requireTesterSession } from "@/lib/repo";
 
 type Ctx = { params: Promise<{ id: string }> };
 
 export const GET = route(async (req: Request, { params }: Ctx) => {
   const { id } = await params;
   const s = requireTesterSession(id, testerToken(req));
+  // Recovery: processing runs in-process, so a server restart can orphan it. Resume on read.
+  if (s.status !== "recording" && !["done", "failed"].includes(s.prompts_status) && !isProcessing(id)) void processSession(id);
   const utterances = new Map(listUtterances(id).map((u) => [u.id, u]));
   // The quote always comes from the stored utterance, never from model output.
   const prompts = listPrompts(id).map((p) => {
@@ -18,6 +21,8 @@ export const GET = route(async (req: Request, { params }: Ctx) => {
     questionnaire: getQuestionnaire(s.questionnaire_id),
     prompts,
     hasRecording: Boolean(s.recording_bytes),
+    // Saved drafts, so a reload restores the tester's answers.
+    answers: listAnswers(id).map((a) => ({ questionId: a.question_id, text: a.text, rating: a.rating, promptIds: JSON.parse(a.prompt_ids_json) })),
   });
 });
 

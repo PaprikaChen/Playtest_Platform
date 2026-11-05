@@ -66,7 +66,7 @@ export function ReviewPlayer({ sessionId, hasRecording, audioOnly, utterances, q
         <div className="card p-0">
           <div className="px-4 py-3 border-b border-line flex justify-between items-baseline">
             <h2 className="h2">Timeline</h2>
-            <span className="text-xs text-muted">{utterances.length} comments</span>
+            <span className="text-xs text-muted">{utterances.length} comment{utterances.length === 1 ? "" : "s"}</span>
           </div>
           <ol className="max-h-[60vh] overflow-y-auto divide-y divide-line">
             {utterances.length === 0 && <li className="p-4 text-sm text-muted">No comments or transcript.</li>}
