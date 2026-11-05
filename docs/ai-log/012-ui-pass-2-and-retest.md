@@ -5,7 +5,7 @@ issue: null
 agent: claude-code
 model: claude-opus-5-5
 type: feature
-commits: []
+commits: [d0974bc]
 outcome: accepted-with-fixes
 human_corrections: 1
 caught_by: [browser-test, review, human]

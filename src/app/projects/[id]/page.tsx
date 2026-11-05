@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { Shell } from "@/components/shell";
 import { Panel, Status } from "@/components/ui";
 import { fmtBytes, fmtDate, fmtTime } from "@/lib/format";
@@ -34,7 +34,9 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
     { done: sessions.length > 0, label: "First tester", tab: "share" },
   ];
   // New games open on the next setup step; games with feedback open on Feedback.
-  const tab: Tab = TABS.some((t) => t.key === tabParam) ? (tabParam as Tab) : sessions.length ? "feedback" : (steps.find((s) => !s.done)?.tab ?? "share");
+  // Pin the choice in the URL so later refreshes (after an upload, a save…) don't jump to another tab under the user.
+  if (!TABS.some((t) => t.key === tabParam)) redirect(`/projects/${id}?tab=${sessions.length ? "feedback" : (steps.find((s) => !s.done)?.tab ?? "share")}`);
+  const tab = tabParam as Tab;
   const submitted = sessions.filter((s) => s.submitted_at).length;
   const counts: Record<Tab, number> = { feedback: sessions.length, questions: questionnaire?.questions.length ?? 0, share: invites.filter((i) => i.active).length };
 

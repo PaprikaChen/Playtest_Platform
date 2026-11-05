@@ -5,7 +5,7 @@ issue: 17
 agent: claude-code
 model: claude-opus-5-5
 type: feature
-commits: []
+commits: [b437a40]
 outcome: accepted
 human_corrections: 0
 caught_by: [unit-test, browser-test]

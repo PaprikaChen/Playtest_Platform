@@ -45,7 +45,7 @@
     if (keys.Space && p.ground) { p.vy = -10.5; p.ground = false; }
     p.vy = Math.min(p.vy + 0.5, 12);
     p.x += p.vx; p.y += p.vy; p.ground = false;
-    for (const [x, y, w, h] of lv.plats) {
+    for (const [x, y, w] of lv.plats) {
       if (p.x + p.w > x && p.x < x + w && p.y + p.h > y && p.y + p.h - p.vy <= y + 1) {
         p.y = y - p.h; p.vy = 0; p.ground = true;
       }

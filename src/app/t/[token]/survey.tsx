@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ClipPlayer } from "@/components/clip-player";
 import { fmtTime } from "@/lib/format";
 import type { Question } from "@/lib/types";
@@ -51,23 +51,35 @@ export function Survey({ token, sessionId, projectName, audioOnly, onSubmitted }
     return () => { stop = true; };
   }, [sessionId, token]);
 
-  // Autosave drafts 1 s after the last edit.
+  // Autosave drafts 1 s after the last edit. `unsaved` holds edits not yet confirmed by the server.
+  const unsaved = useRef<Record<string, Ans> | null>(null);
+  const save = useCallback(async (all: Record<string, Ans>, keepalive = false) => {
+    const res = await fetch(`/api/sessions/${sessionId}/answers`, {
+      method: "POST", headers: { "content-type": "application/json", "x-invite-token": token }, keepalive,
+      body: JSON.stringify({ submit: false, answers: Object.entries(all).map(([questionId, a]) => ({ questionId, ...a })) }),
+    }).catch(() => null);
+    if (unsaved.current === all) unsaved.current = null;
+    return Boolean(res?.ok);
+  }, [sessionId, token]);
+
   useEffect(() => {
     if (!loaded.current || !dirty.current) return;
-    const t = setTimeout(async () => {
-      setSaved("saving");
-      const res = await fetch(`/api/sessions/${sessionId}/answers`, {
-        method: "POST", headers: { "content-type": "application/json", "x-invite-token": token },
-        body: JSON.stringify({ submit: false, answers: Object.entries(answers).map(([questionId, a]) => ({ questionId, ...a })) }),
-      }).catch(() => null);
-      setSaved(res?.ok ? "saved" : "error");
-    }, 1000);
+    unsaved.current = answers;
+    const t = setTimeout(async () => setSaved((await save(answers)) ? "saved" : "error"), 1000);
     return () => clearTimeout(t);
-  }, [answers, sessionId, token]);
+  }, [answers, save]);
+
+  // Reload/close inside the 1 s window must not lose the last edit: flush with a keepalive request.
+  useEffect(() => {
+    const flush = () => { if (unsaved.current) void save(unsaved.current, true); };
+    addEventListener("pagehide", flush);
+    return () => removeEventListener("pagehide", flush);
+  }, [save]);
 
   const ans = (qid: string): Ans => answers[qid] ?? { text: "", rating: null, promptIds: [] };
   const setAns = (qid: string, patch: Partial<Ans>) => {
     dirty.current = true;
+    setSaved("saving"); // never show "saved" while an edit is still waiting to be sent
     setAnswers((all) => ({ ...all, [qid]: { ...(all[qid] ?? { text: "", rating: null, promptIds: [] }), ...patch } }));
   };
 

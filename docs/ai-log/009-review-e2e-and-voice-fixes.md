@@ -5,7 +5,7 @@ issue: 22
 agent: claude-code
 model: claude-opus-5-5
 type: bugfix
-commits: []
+commits: [ea45e1c]
 outcome: accepted-with-fixes
 human_corrections: 1
 caught_by: [review, browser-test, unit-test]

@@ -25,11 +25,14 @@ Try it with the sample build: create a project, upload `samples/lantern-hop.zip`
 Every change follows: **issue with acceptance criteria → plan → test first → implement → browser check → AI log entry → PR → CI + review**.
 
 - [`CLAUDE.md`](CLAUDE.md): agent handbook covering the map, invariants, gotchas and workflow.
+- [`docs/HANDOFF.md`](docs/HANDOFF.md): current state, open items and risks, for whoever takes the next shift.
 - [`docs/decisions/`](docs/decisions): short records of key design decisions.
 - [`docs/ai-log/`](docs/ai-log): one entry per AI task (requirement, prompt, change, validation, human correction). A
   Claude Code Stop hook blocks ending a session with an unlogged agent commit. `npm run ai-log:stats` summarizes the log.
-- `.github/`: issue template (acceptance criteria), PR template, CI (lint · typecheck · tests · build · AI-log
-  summary), and an optional Claude PR review (enabled by an `ANTHROPIC_API_KEY` secret).
+- `.github/`: issue template (acceptance criteria), PR template, and CI. CI runs `check` (lint, typecheck, unit tests,
+  build, AI-log summary), then `e2e` (Playwright, fake screen + mic). An optional Claude PR review is enabled by an
+  `ANTHROPIC_API_KEY` secret.
+- A `.githooks/pre-push` hook runs `npm run check` before every push (`npm install` enables it).
 
 ## AI providers (optional)
 

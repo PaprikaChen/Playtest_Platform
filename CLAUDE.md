@@ -11,8 +11,9 @@ video, timeline and answers. Source of truth: `project_proposal.pdf`, `playtest_
 ## Commands
 ```bash
 npm run dev         # http://localhost:3000
-npm test            # vitest (must pass before any commit)
-npm run typecheck   # tsc --noEmit
+npm run check       # lint + typecheck + unit tests (the pre-push hook runs this)
+npm test            # vitest, incl. a real Whisper accuracy test (SKIP_ASR=1 to skip)
+npm run typecheck   # tsc on sources only (tsconfig.typecheck.json; ignores generated .next*/types)
 npm run lint        # eslint
 npm run build       # production build (CI runs this)
 npm run e2e         # Playwright, real Chrome, fake screen + mic (e2e/fixtures/speech.wav); writes docs/screenshots/e2e-*.png
@@ -50,15 +51,45 @@ Node ≥ 22.5 (built-in `node:sqlite`). Data goes in `./data` (git-ignored). Sam
 - Local Whisper needs the `_timestamped` ONNX export for word timestamps. Plain exports only give coarse ~7 s segments.
 - Whisper outputs Traditional Chinese for Mandarin; tests accept both scripts.
 - A MediaRecorder keeps recording when one track ends. Don't stop it when screen sharing ends, or the mic is lost.
+- Next.js strips `Content-Encoding` set by a route handler, so `.br`/`.gz` game assets are decompressed server-side.
+- The HTML `hidden` attribute loses to Tailwind display classes (`flex`, `grid`). Toggle classes instead.
+- `src/components/ui.tsx` and `src/lib/format.ts` are imported by client components. Never import `repo`/`db` there
+  (server-only UI lives in `src/components/shell.tsx`).
+- **Agents can't type into interactive prompts** (the Claude terminal panel doesn't take agent keystrokes). Use
+  non-interactive flags, or run in the background and hand the human the code/URL (e.g. `gh auth refresh` device code).
+- Run eslint via `npm run lint` (whole repo, with ignores), not on hand-picked folders: a config gap once hid 1000+
+  local errors that CI didn't see.
 
 ## Workflow (every change)
-1. Work from a GitHub issue with **acceptance criteria** (use the issue template). Branch: `feat/<issue#>-slug`, `fix/…`, `chore/…`.
-2. Write a short plan in the issue or PR before coding. For behaviour changes, **write the failing test first**.
-3. Implement, then verify: `npm test && npm run typecheck && npm run lint`. For UI, run the app and check it in a browser,
-   and attach a screenshot to the PR.
-4. **Log the AI task** in `docs/ai-log/` with the `/log-ai-task` skill (required: the Stop hook blocks until the latest
-   agent commit is logged).
-5. Open a PR with the template, `Closes #<issue>`. CI must pass; a teammate reviews before merge.
+1. **Start from an issue** with acceptance criteria (issue template), and move it to *In Progress* on the board.
+   Branch: `feat/<issue#>-slug`, `fix/…`, `chore/…`.
+2. **Design review before code.** For anything user-facing, propose the design (and ask open questions) before
+   implementing. For behaviour changes, **write the failing test first**.
+3. **Implement, then verify locally:** `npm run check`, plus `npm run e2e` for anything touching the tester or creator
+   flow. Look at the screenshots it writes, not only the pass/fail.
+   **A flaky test is a bug until proven otherwise:** run it 3× and find the cause. Twice, "flakes" here were real
+   races (a stale "Draft saved" label; the page switching tabs after a refresh). Never add retries to hide them.
+4. **Log the AI task** in `docs/ai-log/` with the `log-ai-task` skill, listing every commit. The Stop hook blocks until
+   all agent commits on the branch are logged.
+5. **Push only after the human says so.** The pre-push hook runs `npm run check`. Then open or update the PR
+   (template, `Closes #…`). CI runs check and E2E; a teammate reviews before merge.
+6. **Batch GitHub-visible changes** (push, PR edits, issue/board updates) at the end of a task, after the human has seen
+   the result locally. Making anything public (repo, board) is always the human's call.
+7. **End of shift:** run the `shift-handoff` skill to update `docs/HANDOFF.md` for the next person.
+
+## UI checklist (before showing a screen)
+- Every region has a title and a few-word tag saying what it's for (`Panel` component). Name the game, build and
+  status in plain words.
+- Check E2E screenshots at 1440 px and 375 px (no horizontal scroll; long names wrap or truncate).
+- Avoid the generated-design tells listed in Anthropic's frontend-design skill: cream backgrounds, ALL-CAPS eyebrow
+  labels, `A · B · C` metadata, monospace data labels, `→` in buttons, identical cards everywhere.
+- Accent `#3575D4` keeps white button text at WCAG AA (4.5:1). Don't go lighter for buttons; use `accent-light` for
+  decoration.
+
+## Edge-case checklist (before calling a feature done)
+Empty, huge and Unicode input · malformed JSON · wrong or turned-off token · double click and double submit · reload
+mid-flow · tester leaves mid-session · permission denied (screen/mic) · network failure and retry · file names with
+spaces, `%`, `..` or CJK · phone width.
 
 ## Style
 TypeScript strict. Small server-side modules in `src/lib`, no ORM. Tailwind with the tokens in `globals.css`

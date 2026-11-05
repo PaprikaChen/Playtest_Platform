@@ -1,0 +1,7 @@
+#!/bin/sh
+# Fast local gate before anything reaches GitHub. Skip once with: git push --no-verify
+echo "pre-push: lint, typecheck, unit tests…"
+npm run -s lint >/dev/null 2>&1 || { echo "✗ lint failed: run npm run lint"; exit 1; }
+npm run -s typecheck || { echo "✗ typecheck failed"; exit 1; }
+npm test --silent >/dev/null 2>&1 || { echo "✗ unit tests failed: run npm test"; exit 1; }
+echo "✓ pre-push checks passed"
