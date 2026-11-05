@@ -20,7 +20,7 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
   const { id } = await params;
   const { tab: tabParam } = await searchParams;
   purgeExpired();
-  finalizeStaleSessions();
+  await finalizeStaleSessions();
   const project = getProject(id);
   if (!project) notFound();
   const builds = listBuilds(id);

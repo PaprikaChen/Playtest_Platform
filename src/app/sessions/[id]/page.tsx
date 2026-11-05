@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 export default async function SessionReview({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   purgeExpired();
-  finalizeStaleSessions();
+  await finalizeStaleSessions();
   const s = getSession(id);
   if (!s) notFound();
   const project = getProject(s.project_id)!;
