@@ -9,7 +9,7 @@ export function route<C>(fn: Handler<C>): Handler<C> {
   return async (req, ctx) => {
     try {
       purgeExpired();
-      finalizeStaleSessions();
+      await finalizeStaleSessions();
       return await fn(req, ctx);
     } catch (e) {
       if (e instanceof HttpError) return NextResponse.json({ error: e.message }, { status: e.status });

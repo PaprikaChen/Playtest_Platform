@@ -27,7 +27,9 @@ export default defineConfig({
   },
   webServer: {
     // Isolated data dir and port so E2E never touches dev data.
-    command: `PLAYTEST_DATA_DIR=.e2e-data NEXT_DIST_DIR=.next-e2e npx next dev -p ${PORT}`,
+    // Env goes through `env`, not a VAR=x command prefix, so this also runs on Windows.
+    command: `npx next dev -p ${PORT}`,
+    env: { ...process.env, PLAYTEST_DATA_DIR: ".e2e-data", NEXT_DIST_DIR: ".next-e2e" },
     url: `http://localhost:${PORT}`,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

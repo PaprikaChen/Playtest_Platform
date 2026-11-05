@@ -47,7 +47,7 @@ describe("creator → tester → review flow", () => {
       { source: "typed", text: "this jump is too hard", start_ms: 12_000, end_ms: 12_000 },
       { source: "typed", text: "controls feel floaty", start_ms: 30_000, end_ms: 30_000 },
     ]);
-    proc.assembleRecording(s.id, 0);
+    await proc.assembleRecording(s.id, 0);
     repo.updateSession(s.id, { status: "processing" });
     await proc.processSession(s.id);
 
@@ -107,7 +107,7 @@ describe("abandoned sessions", () => {
     const fresh = repo.createSession(inv.token, "Still playing", "comments-only", null);
     repo.updateSession(s.id, { consent_at: Date.now() - 31 * 60 * 1000 });
 
-    expect(proc.finalizeStaleSessions()).toBe(1);
+    expect(await proc.finalizeStaleSessions()).toBe(1);
     await new Promise((r) => setTimeout(r, 50));
     const closed = repo.getSession(s.id)!;
     expect(closed.status).toBe("abandoned");
