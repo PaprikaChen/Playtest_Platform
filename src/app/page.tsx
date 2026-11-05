@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { Shell, fmtDate } from "@/components/ui";
+import { Shell } from "@/components/shell";
+import { Panel } from "@/components/ui";
+import { fmtDate } from "@/lib/format";
 import { listProjects } from "@/lib/repo";
 import { NewProjectForm } from "./new-project-form";
 
@@ -9,30 +11,38 @@ export default function Dashboard() {
   const projects = listProjects();
   return (
     <Shell>
-      <div className="flex items-end justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Your playtests</h1>
-          <p className="text-muted text-sm mt-1">Upload a web build, write a questionnaire, share one link. Testers&apos; comments stay tied to the moment they happened.</p>
-        </div>
-      </div>
-      <div className="grid gap-6 md:grid-cols-[1fr_320px]">
-        <section className="space-y-3">
-          {projects.length === 0 && <div className="card text-sm text-muted">No projects yet. Create one to upload your first build.</div>}
+      <header className="mb-8 max-w-2xl">
+        <h1 className="font-display text-4xl font-semibold tracking-tight">Your games</h1>
+        <p className="mt-2 text-muted">Each game gets its own builds, questions, invite links and feedback.</p>
+      </header>
+      <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_340px]">
+        <section aria-label="Games" className="space-y-3">
+          {projects.length === 0 && (
+            <div className="card border-dashed text-center">
+              <p className="font-medium">No games yet</p>
+              <p className="tag mt-1">Add your first game on the right</p>
+            </div>
+          )}
           {projects.map((p) => (
-            <Link key={p.id} href={`/projects/${p.id}`} className="card block hover:border-accent/50 transition-colors">
-              <div className="flex items-center justify-between">
-                <h3 className="font-semibold">{p.name}</h3>
-                <span className="text-xs text-muted">{fmtDate(p.created_at)}</span>
-              </div>
-              {p.description && <p className="text-sm text-muted mt-1">{p.description}</p>}
-              <div className="flex gap-4 mt-3 text-xs text-muted">
-                <span>{p.builds} build{p.builds === 1 ? "" : "s"}</span>
-                <span>{p.sessions} session{p.sessions === 1 ? "" : "s"}</span>
-              </div>
+            <Link key={p.id} href={`/projects/${p.id}`} className="card group flex items-center gap-4 transition-colors hover:border-accent/40">
+              <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-accent-soft font-display text-lg font-semibold text-accent-strong">{p.name.slice(0, 1).toUpperCase()}</span>
+              <span className="min-w-0 flex-1">
+                <span className="block font-display text-lg font-semibold tracking-tight">{p.name}</span>
+                {p.description && <span className="block truncate text-sm text-muted">{p.description}</span>}
+              </span>
+              <dl className="hidden gap-6 text-right sm:flex">
+                <div><dt className="tag">Sessions</dt><dd className="num font-semibold">{p.sessions}</dd></div>
+                <div><dt className="tag">Builds</dt><dd className="num font-semibold">{p.builds}</dd></div>
+                <div><dt className="tag">Created</dt><dd className="text-sm">{fmtDate(p.created_at)}</dd></div>
+              </dl>
             </Link>
           ))}
         </section>
-        <aside><NewProjectForm /></aside>
+        <aside>
+          <Panel id="new-game" title="New game" tag="start a playtest project">
+            <NewProjectForm />
+          </Panel>
+        </aside>
       </div>
     </Shell>
   );

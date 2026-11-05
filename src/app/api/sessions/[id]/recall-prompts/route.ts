@@ -1,5 +1,5 @@
 import { run } from "@/lib/db";
-import { json, route, testerToken } from "@/lib/http";
+import { json, route, testerToken, readJson } from "@/lib/http";
 import { isProcessing, processSession } from "@/lib/processing";
 import { getQuestionnaire, HttpError, listAnswers, listPrompts, listUtterances, requireTesterSession } from "@/lib/repo";
 
@@ -29,7 +29,7 @@ export const GET = route(async (req: Request, { params }: Ctx) => {
 export const PATCH = route(async (req: Request, { params }: Ctx) => {
   const { id } = await params;
   requireTesterSession(id, testerToken(req));
-  const body = await req.json().catch(() => ({}));
+  const body = await readJson(req);
   if (!["shown", "inserted", "dismissed"].includes(body.state)) throw new HttpError(400, "Invalid state.");
   run("UPDATE recall_prompts SET state=? WHERE id=? AND session_id=?", body.state, String(body.promptId), id);
   return json({ ok: true });

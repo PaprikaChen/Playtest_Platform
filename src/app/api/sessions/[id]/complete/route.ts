@@ -1,4 +1,4 @@
-import { json, route, testerToken } from "@/lib/http";
+import { json, route, testerToken, readJson } from "@/lib/http";
 import { assembleRecording, processSession } from "@/lib/processing";
 import { getSession, requireTesterSession, updateSession } from "@/lib/repo";
 
@@ -10,7 +10,7 @@ export const POST = route(async (req: Request, { params }: Ctx) => {
   const s = requireTesterSession(id, testerToken(req));
   if (s.status !== "recording") return json({ status: s.status, alreadyCompleted: true });
 
-  const body = await req.json().catch(() => ({}));
+  const body = await readJson(req);
   const chunkCount = Math.max(0, Number(body.chunkCount) || 0);
   const { bytes, missing } = assembleRecording(id, chunkCount, Math.round(Number(body.durationMs) || 0));
   updateSession(id, {

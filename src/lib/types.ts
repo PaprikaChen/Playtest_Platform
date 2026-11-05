@@ -35,7 +35,7 @@ export interface SessionRow {
   tester_name: string;
   capture_mode: string;
   language: string | null;
-  status: "recording" | "processing" | "ready" | "failed" | "submitted";
+  status: "recording" | "processing" | "ready" | "failed" | "submitted" | "abandoned";
   transcript_status: string;
   prompts_status: string;
   processing_error: string | null;
@@ -52,5 +52,7 @@ export interface SessionRow {
 }
 
 export const RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
+/** A session still "recording" with no uploads for this long is treated as abandoned. */
+export const STALE_RECORDING_MS = 30 * 60 * 1000;
 export const REPLAY_BEFORE_MS = 5000;
 export const REPLAY_AFTER_MS = 5000;

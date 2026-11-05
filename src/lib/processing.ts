@@ -6,7 +6,7 @@ import { addUtterances, getQuestionnaire, getSession, listUtterances, newId, upd
 import { transcribeRecording } from "./ai/transcribe";
 import { generateRecall } from "./ai/recall";
 import { makeSeekable } from "./webm";
-import { REPLAY_AFTER_MS, REPLAY_BEFORE_MS } from "./types";
+import { REPLAY_AFTER_MS, REPLAY_BEFORE_MS, STALE_RECORDING_MS, type SessionRow } from "./types";
 
 /** Concatenate uploaded chunks in sequence order into one recording file. */
 export function assembleRecording(sessionId: string, expectedChunks: number, durationMs = 0): { bytes: number; missing: number[] } {
@@ -31,6 +31,39 @@ export function assembleRecording(sessionId: string, expectedChunks: number, dur
 }
 
 const inflight = new Set<string>();
+
+/** After processing: keep "submitted" / "abandoned", otherwise the tester can now answer ("ready"). */
+function settledStatus(sessionId: string): SessionRow["status"] {
+  const st = getSession(sessionId)?.status;
+  return st === "submitted" || st === "abandoned" ? st : "ready";
+}
+
+/**
+ * Close sessions whose tester left mid-play (tab closed, crash): no upload or
+ * comment for STALE_RECORDING_MS. Whatever was recorded is assembled and
+ * processed so the developer still gets it. Called lazily on reads.
+ */
+export function finalizeStaleSessions(now = Date.now()) {
+  const cutoff = now - STALE_RECORDING_MS;
+  const stale = all<{ id: string }>(
+    `SELECT s.id FROM sessions s WHERE s.status='recording'
+       AND MAX(s.consent_at, COALESCE((SELECT MAX(c.created_at) FROM chunks c WHERE c.session_id=s.id), 0)) < ?`,
+    cutoff,
+  );
+  for (const { id } of stale) {
+    const seqs = all<{ seq: number }>("SELECT seq FROM chunks WHERE session_id=? ORDER BY seq", id);
+    const { bytes } = assembleRecording(id, seqs.length ? seqs[seqs.length - 1].seq + 1 : 0);
+    updateSession(id, {
+      status: "abandoned",
+      ended_at: now,
+      recording_bytes: bytes || null,
+      recording_mime: bytes ? "video/webm" : null,
+      processing_error: "Tester left before finishing; the session was closed automatically.",
+    });
+    void processSession(id);
+  }
+  return stale.length;
+}
 export const isProcessing = (sessionId: string) => inflight.has(sessionId);
 
 /**
@@ -86,10 +119,10 @@ export async function processSession(sessionId: string) {
         prompts_status: "done",
         ai_provider: result.placeholder ? `${result.provider} (placeholder)` : `${result.provider}:${result.model}`,
         prompts_ready_at: Date.now(),
-        status: getSession(sessionId)?.status === "submitted" ? "submitted" : "ready",
+        status: settledStatus(sessionId),
       });
     } catch (e) {
-      updateSession(sessionId, { prompts_status: "failed", processing_error: String((e as Error).message ?? e), status: getSession(sessionId)?.status === "submitted" ? "submitted" : "ready" });
+      updateSession(sessionId, { prompts_status: "failed", processing_error: String((e as Error).message ?? e), status: settledStatus(sessionId) });
     }
   } finally {
     inflight.delete(sessionId);

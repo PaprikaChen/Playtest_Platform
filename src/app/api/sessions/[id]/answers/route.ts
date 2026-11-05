@@ -1,4 +1,4 @@
-import { json, route, testerToken } from "@/lib/http";
+import { json, route, testerToken, readJson } from "@/lib/http";
 import { HttpError, requireTesterSession, saveAnswer, updateSession } from "@/lib/repo";
 import { tx } from "@/lib/db";
 
@@ -9,7 +9,7 @@ export const POST = route(async (req: Request, { params }: Ctx) => {
   const s = requireTesterSession(id, testerToken(req));
   if (s.status === "recording") throw new HttpError(409, "Finish the play session first.");
   if (s.submitted_at) throw new HttpError(409, "Questionnaire already submitted.");
-  const body = await req.json().catch(() => ({}));
+  const body = await readJson(req);
   const answers = Array.isArray(body.answers) ? body.answers : [];
   tx(() => {
     for (const a of answers) {

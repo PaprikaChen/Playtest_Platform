@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { fmtTime } from "./ui";
+import { fmtTime } from "@/lib/format";
 
 /**
  * Plays one slice of the session recording (e.g. 5 s before → 5 s after a comment).
@@ -53,7 +53,7 @@ export function ClipPlayer({ src, startMs, endMs, momentMs, audioOnly, poster }:
           {state === "playing" ? "❚❚" : "▶"}
         </span>
       </button>
-      <span className="pointer-events-none absolute bottom-1.5 right-1.5 rounded bg-black/60 px-1.5 py-0.5 font-mono text-[11px] text-white">{fmtTime(momentMs)}</span>
+      <span className="pointer-events-none absolute bottom-1.5 right-1.5 rounded bg-black/60 px-1.5 py-0.5 num text-[11px] font-medium text-white">{fmtTime(momentMs)}</span>
       <span className="pointer-events-none absolute bottom-0 left-0 h-0.5 bg-white/80" style={{ width: `${progress * 100}%` }} />
     </div>
   );

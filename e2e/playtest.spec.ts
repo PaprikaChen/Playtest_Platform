@@ -14,10 +14,10 @@ test("creator setup → tester plays with screen + mic → recall questionnaire 
   await page.goto("/");
   await page.getByLabel("Game name").fill("Lantern Hop");
   await page.getByLabel("What are you testing?").fill("Levels 1–2, new jump tuning");
-  await page.getByRole("button", { name: "Create project" }).click();
+  await page.getByRole("button", { name: "Create game" }).click();
   await page.waitForURL(/\/projects\//);
 
-  await page.getByPlaceholder("Build label").fill("v0.3 jump tuning");
+  await page.getByLabel("Build name").fill("v0.3 jump tuning");
   await page.locator('input[type="file"]').setInputFiles(ZIP);
   await expect(page.getByText(/Published “v0.3 jump tuning”/)).toBeVisible();
   await page.getByRole("button", { name: "Save", exact: true }).click();
@@ -75,7 +75,7 @@ test("creator setup → tester plays with screen + mic → recall questionnaire 
   await shot(tester, "e2e-3-tester-playing");
   log.sidePanel = await tester.locator("aside").innerText();
 
-  await tester.getByRole("button", { name: /done playing/ }).click();
+  await tester.getByRole("button", { name: "Finish and answer questions" }).click();
   await tester.waitForURL(/\/survey\//, { timeout: 60_000 });
   const sessionId = tester.url().split("/").pop()!;
 
@@ -134,7 +134,7 @@ test("creator setup → tester plays with screen + mic → recall questionnaire 
   await expect(page.getByRole("heading", { name: "Sam" })).toBeVisible();
   const timeline = page.locator("aside ol li");
   log.timeline = await timeline.allInnerTexts();
-  expect((log.timeline as string[]).some((t) => t.includes("transcript") && /jump is way too hard/i.test(t))).toBe(true);
+  expect((log.timeline as string[]).some((t) => t.includes("Spoken") && /jump is way too hard/i.test(t))).toBe(true);
   await shot(page, "e2e-5-developer-review");
 
   fs.writeFileSync(path.join(SHOTS, "e2e-run.json"), JSON.stringify(log, null, 2));

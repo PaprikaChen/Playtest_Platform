@@ -1,43 +1,49 @@
-import Link from "next/link";
 
-export function Shell({ children, crumbs }: { children: React.ReactNode; crumbs?: { href?: string; label: string }[] }) {
+export function Logo() {
+  // A play triangle sitting on a timeline: playtests are moments on a timeline.
   return (
-    <div className="min-h-screen">
-      <header className="border-b border-line bg-surface">
-        <div className="mx-auto max-w-6xl px-4 h-14 flex items-center gap-3 text-sm">
-          <Link href="/" className="font-semibold tracking-tight">▶ Playtest</Link>
-          {crumbs?.map((c, i) => (
-            <span key={i} className="flex items-center gap-3 text-muted">
-              <span>/</span>
-              {c.href ? <Link href={c.href} className="hover:text-foreground">{c.label}</Link> : <span className="text-foreground">{c.label}</span>}
-            </span>
-          ))}
-          <span className="ml-auto pill bg-warn-soft text-warn">Alpha · local creator mode</span>
-        </div>
-      </header>
-      <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
-    </div>
+    <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden>
+      <rect width="22" height="22" rx="6" fill="var(--accent)" />
+      <path d="M8 6.5v7l6-3.5z" fill="#fff" />
+      <rect x="5" y="16" width="12" height="1.6" rx=".8" fill="#fff" opacity=".7" />
+    </svg>
   );
 }
 
-const STATUS: Record<string, string> = {
-  recording: "bg-accent-soft text-accent",
-  processing: "bg-warn-soft text-warn",
-  running: "bg-warn-soft text-warn",
-  pending: "bg-background text-muted",
-  ready: "bg-ok-soft text-ok",
-  done: "bg-ok-soft text-ok",
-  submitted: "bg-ok-soft text-ok",
-  skipped: "bg-background text-muted",
-  failed: "bg-bad-soft text-bad",
-};
-export function Status({ value, label }: { value: string; label?: string }) {
-  return <span className={`pill ${STATUS[value] ?? "bg-background text-muted"}`}>{label ? `${label}: ` : ""}{value}</span>;
+/**
+ * A labelled region: title + a few-word tag saying what it is for.
+ * `flush` lets the body run edge to edge (tables, video, lists) while the header keeps its padding.
+ */
+export function Panel({ title, tag, action, children, className = "", id, flush = false, divided = false }: { title: string; tag: string; action?: React.ReactNode; children: React.ReactNode; className?: string; id?: string; flush?: boolean; divided?: boolean }) {
+  return (
+    <section id={id} className={`card ${flush ? "overflow-hidden p-0" : ""} ${className}`} aria-label={title}>
+      <header className={`flex items-start gap-3 ${flush ? `px-5 pt-5 ${divided ? "border-b border-line pb-4" : "pb-4"}` : "mb-4"}`}>
+        <div className="min-w-0 flex-1">
+          <h2 className="h2">{title}</h2>
+          <p className="tag mt-0.5">{tag}</p>
+        </div>
+        {action}
+      </header>
+      {children}
+    </section>
+  );
 }
 
-export const fmtTime = (ms: number) => {
-  const s = Math.max(0, Math.floor(ms / 1000));
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+const STATUS: Record<string, { label: string; cls: string }> = {
+  recording: { label: "Playing now", cls: "bg-accent-soft text-accent-strong" },
+  processing: { label: "Processing", cls: "bg-warn-soft text-warn" },
+  running: { label: "Running", cls: "bg-warn-soft text-warn" },
+  pending: { label: "Waiting", cls: "bg-background text-muted" },
+  ready: { label: "Answering", cls: "bg-accent-soft text-accent-strong" },
+  done: { label: "Done", cls: "bg-ok-soft text-ok" },
+  submitted: { label: "Submitted", cls: "bg-ok-soft text-ok" },
+  skipped: { label: "Skipped", cls: "bg-background text-muted" },
+  failed: { label: "Failed", cls: "bg-bad-soft text-bad" },
+  abandoned: { label: "Left early", cls: "bg-warn-soft text-warn" },
 };
-export const fmtDate = (t: number) => new Date(t).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
-export const fmtBytes = (b: number) => (b > 1e6 ? `${(b / 1e6).toFixed(1)} MB` : `${Math.ceil(b / 1e3)} KB`);
+export function Status({ value, label }: { value: string; label?: string }) {
+  const s = STATUS[value] ?? { label: value, cls: "bg-background text-muted" };
+  return <span className={`pill ${s.cls}`}>{label ? `${label}: ` : ""}{s.label}</span>;
+}
+
+export { fmtTime, fmtDate, fmtBytes } from "@/lib/format";

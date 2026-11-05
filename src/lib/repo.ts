@@ -139,7 +139,8 @@ export const listInvites = (projectId: string) =>
      FROM invites i JOIN builds b ON b.id=i.build_id JOIN questionnaires q ON q.id=i.questionnaire_id
      WHERE i.project_id=? ORDER BY i.created_at DESC`, projectId);
 export function setInviteActive(id: string, active: boolean) {
-  run("UPDATE invites SET active=? WHERE id=?", active ? 1 : 0, id);
+  const r = run("UPDATE invites SET active=? WHERE id=?", active ? 1 : 0, id);
+  if (!r.changes) throw new HttpError(404, "Invite link not found.");
 }
 export function inviteByToken(token: string) {
   const inv = get<Invite>("SELECT * FROM invites WHERE token=?", token);

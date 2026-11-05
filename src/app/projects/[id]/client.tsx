@@ -21,19 +21,24 @@ export function BuildUpload({ projectId }: { projectId: string }) {
     setBusy(false);
     if (input.current) input.current.value = "";
     if (!res.ok) return setMsg({ ok: false, text: body.error });
-    setMsg({ ok: true, text: `Published “${body.build.label}” (${body.build.file_count} files).` });
+    setMsg({ ok: true, text: `Published “${body.build.label}” (${body.build.file_count} files)` });
     setLabel("");
     router.refresh();
   }
 
   return (
-    <div className="space-y-2">
-      <input className="input" placeholder="Build label, e.g. v0.3 jump tuning" value={label} onChange={(e) => setLabel(e.target.value)} />
-      <label className={`block rounded-lg border-2 border-dashed border-line p-4 text-center text-sm cursor-pointer hover:border-accent/50 ${busy ? "opacity-60" : ""}`}>
+    <div className="space-y-3">
+      <div>
+        <label className="label" htmlFor="build-label">Build name</label>
+        <input id="build-label" className="input" placeholder="e.g. v0.3 jump tuning" value={label} onChange={(e) => setLabel(e.target.value)} />
+      </div>
+      <label className={`block cursor-pointer rounded-xl border-2 border-dashed border-line px-4 py-5 text-center transition-colors hover:border-accent/50 hover:bg-accent-soft/40 ${busy ? "opacity-60" : ""}`}>
         <input ref={input} type="file" accept=".zip" className="sr-only" disabled={busy}
           onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])} />
-        <span className="font-medium">{busy ? "Validating & publishing…" : "Choose a web-build .zip"}</span>
-        <span className="block text-xs text-muted mt-1">Needs index.html · ≤ 2000 files · ≤ 200 MB unpacked</span>
+        <span className="block text-sm font-semibold text-accent-strong">{busy ? "Checking and publishing…" : "Upload web build (.zip)"}</span>
+        <span className="mt-2 flex flex-wrap justify-center gap-1.5 text-[11px] text-muted">
+          <span className="pill bg-background">has index.html</span><span className="pill bg-background">up to 2000 files</span><span className="pill bg-background">up to 200 MB</span>
+        </span>
       </label>
       {msg && <p className={`text-sm ${msg.ok ? "text-ok" : "text-bad"}`}>{msg.text}</p>}
     </div>
@@ -64,7 +69,7 @@ export function QuestionnaireEditor({ projectId, initial }: { projectId: string;
     });
     const body = await res.json();
     setBusy(false);
-    setMsg(res.ok ? `Saved as version ${body.questionnaire.version}.` : body.error);
+    setMsg(res.ok ? `Saved as version ${body.questionnaire.version}` : body.error);
     if (res.ok) router.refresh();
   }
 
@@ -73,11 +78,17 @@ export function QuestionnaireEditor({ projectId, initial }: { projectId: string;
 
   return (
     <div className="space-y-3">
-      <input className="input font-medium" value={title} onChange={(e) => setTitle(e.target.value)} aria-label="Questionnaire title" />
-      <ol className="divide-y divide-line rounded-xl border border-line">
+      <div>
+        <label className="label" htmlFor="q-title">Title testers see</label>
+        <input id="q-title" className="input font-medium" value={title} onChange={(e) => setTitle(e.target.value)} />
+      </div>
+      <div className="flex px-3 text-xs text-muted" aria-hidden>
+        <span className="w-8">#</span><span className="flex-1">Question</span><span className="w-[116px]">Answer type</span><span className="w-7" />
+      </div>
+      <ol className="-mt-1 divide-y divide-line rounded-xl border border-line">
         {qs.map((q, i) => (
           <li key={i} className="group flex items-start gap-3 px-3 py-2.5">
-            <span className="mt-2 w-5 shrink-0 text-right text-xs font-semibold text-muted">{i + 1}</span>
+            <span className="num mt-2 w-5 shrink-0 text-xs font-semibold text-muted">{i + 1}</span>
             <textarea
               className="min-h-9 flex-1 resize-none rounded-md border border-transparent bg-transparent px-2 py-1.5 text-sm outline-none [field-sizing:content] hover:border-line focus:border-accent focus:bg-surface"
               rows={1} value={q.prompt} placeholder="Ask about a moment, a feeling, a mechanic…"
@@ -86,7 +97,7 @@ export function QuestionnaireEditor({ projectId, initial }: { projectId: string;
             <div className="mt-1 flex shrink-0 rounded-lg border border-line p-0.5 text-xs" role="radiogroup" aria-label={`Question ${i + 1} type`}>
               {(["text", "rating"] as const).map((t) => (
                 <button key={t} type="button" role="radio" aria-checked={q.type === t} onClick={() => update(i, { type: t })}
-                  className={`rounded-md px-2 py-1 ${q.type === t ? "bg-accent text-white" : "text-muted hover:text-foreground"}`}>{t === "text" ? "Open" : "1–5"}</button>
+                  className={`rounded-md px-2 py-1 ${q.type === t ? "bg-accent text-white" : "text-muted hover:text-foreground"}`}>{t === "text" ? "Text" : "1–5 scale"}</button>
               ))}
             </div>
             <button type="button" aria-label={`Remove question ${i + 1}`} className="mt-1.5 rounded px-1.5 text-muted opacity-40 hover:text-bad group-hover:opacity-100" onClick={() => setQs(qs.filter((_, j) => j !== i))}>✕</button>
@@ -94,7 +105,7 @@ export function QuestionnaireEditor({ projectId, initial }: { projectId: string;
         ))}
       </ol>
       <div className="flex items-center gap-3">
-        <button type="button" className="btn-ghost" onClick={() => setQs([...qs, { type: "text", prompt: "" }])}>+ Question</button>
+        <button type="button" className="btn-ghost" onClick={() => setQs([...qs, { type: "text", prompt: "" }])}>Add question</button>
         <span className="ml-auto text-xs text-muted">{msg || (dirty ? (initial ? "Unsaved changes" : "Not saved yet") : "")}</span>
         <button type="button" className="btn-primary" disabled={busy || (!dirty && Boolean(initial))} onClick={save}>{busy ? "Saving…" : initial ? "Save new version" : "Save"}</button>
       </div>
@@ -122,6 +133,10 @@ export function InviteManager({ projectId, builds, hasQuestionnaire, invites }: 
     if (!res.ok) return setError(body.error);
     router.refresh();
   }
+  async function copy(id: string, url: string) {
+    // navigator.clipboard is missing on plain-http LAN addresses; fall back to letting the user copy.
+    try { await navigator.clipboard.writeText(url); setCopied(id); } catch { setCopied(`fail:${id}`); }
+  }
   async function toggle(id: string, active: boolean) {
     await fetch(`/api/invites/${id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ active }) });
     router.refresh();
@@ -130,13 +145,16 @@ export function InviteManager({ projectId, builds, hasQuestionnaire, invites }: 
   const ready = builds.length > 0 && hasQuestionnaire;
   return (
     <div className="space-y-3">
-      {!ready && <p className="text-sm text-muted">Upload a build and save a questionnaire first.</p>}
+      {!ready && <p className="text-sm text-muted">Needs a build and saved questions first.</p>}
       {ready && (
-        <div className="flex gap-2">
-          <select className="input" value={buildId} onChange={(e) => setBuildId(e.target.value)} aria-label="Build">
-            {builds.map((b) => <option key={b.id} value={b.id}>{b.label}</option>)}
-          </select>
-          <button className="btn-primary shrink-0" disabled={busy} onClick={create}>Create link</button>
+        <div>
+          <label className="label" htmlFor="invite-build">Build to test</label>
+          <div className="flex gap-2">
+            <select id="invite-build" className="input" value={buildId} onChange={(e) => setBuildId(e.target.value)}>
+              {builds.map((b) => <option key={b.id} value={b.id}>{b.label}</option>)}
+            </select>
+            <button className="btn-primary shrink-0" disabled={busy} onClick={create}>Create link</button>
+          </div>
         </div>
       )}
       {error && <p className="text-sm text-bad">{error}</p>}
@@ -144,16 +162,18 @@ export function InviteManager({ projectId, builds, hasQuestionnaire, invites }: 
         {invites.map((inv) => {
           const url = `${origin}/t/${inv.token}`;
           return (
-            <li key={inv.id} className={`rounded-lg border border-line p-2.5 text-sm ${inv.active ? "" : "opacity-60"}`}>
-              <div className="flex justify-between text-xs text-muted">
-                <span>{inv.build_label} · questionnaire v{inv.q_version}</span>
-                <span>{inv.sessions} session{inv.sessions === 1 ? "" : "s"}</span>
+            <li key={inv.id} className={`rounded-xl border p-3 text-sm ${inv.active ? "border-line" : "border-dashed border-line opacity-60"}`}>
+              <div className="flex items-center gap-2">
+                <span className="truncate font-medium">{inv.build_label}</span>
+                <span className={`pill ml-auto shrink-0 ${inv.active ? "bg-ok-soft text-ok" : "bg-background text-muted"}`}>{inv.active ? "Active" : "Off"}</span>
               </div>
-              <code className="block mt-1 truncate text-xs">{url}</code>
-              <div className="flex gap-2 mt-2">
-                <button className="btn-ghost py-1 text-xs" disabled={!inv.active} onClick={() => { navigator.clipboard.writeText(url); setCopied(inv.id); }}>{copied === inv.id ? "Copied" : "Copy"}</button>
+              <p className="tag num mt-0.5">Questions v{inv.q_version}, {inv.sessions} session{inv.sessions === 1 ? "" : "s"}</p>
+              <input readOnly value={url} onFocus={(e) => e.target.select()} aria-label={`Invite link for ${inv.build_label}`}
+                className="mt-2 w-full truncate rounded-md border border-line bg-background px-2 py-1 text-xs text-muted" />
+              <div className="mt-2 flex items-center gap-2">
+                <button className="btn-primary whitespace-nowrap py-1 text-xs" disabled={!inv.active} onClick={() => copy(inv.id, url)}>{copied === inv.id ? "Copied" : copied === `fail:${inv.id}` ? "Select and copy" : "Copy link"}</button>
                 <a className="btn-ghost py-1 text-xs" href={`/t/${inv.token}`} target="_blank" rel="noreferrer">Open</a>
-                <button className="btn-ghost py-1 text-xs ml-auto" onClick={() => toggle(inv.id, !inv.active)}>{inv.active ? "Disable" : "Enable"}</button>
+                <button className="btn ml-auto whitespace-nowrap py-1 text-xs text-muted hover:text-foreground" onClick={() => toggle(inv.id, !inv.active)}>{inv.active ? "Turn off" : "Turn on"}</button>
               </div>
             </li>
           );

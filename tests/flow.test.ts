@@ -95,3 +95,24 @@ describe("creator → tester → review flow", () => {
     expect(repo.getSession(s.id)).toBeUndefined();
   });
 });
+
+describe("abandoned sessions", () => {
+  it("closes a session with no activity for 30 min and keeps what was recorded", async () => {
+    const p = repo.createProject("Left Early");
+    const b = await repo.createBuild(p.id, "", "a.zip", await sampleZip());
+    const q = repo.saveQuestionnaire(p.id, "", [{ type: "text", prompt: "Which part felt too difficult?" }]);
+    const inv = repo.createInvite(p.id, b.id, q.id);
+    const s = repo.createSession(inv.token, "Quitter", "comments-only", null);
+    repo.addUtterances(s.id, [{ source: "typed", text: "this is too hard", start_ms: 1000, end_ms: 1000 }]);
+    const fresh = repo.createSession(inv.token, "Still playing", "comments-only", null);
+    repo.updateSession(s.id, { consent_at: Date.now() - 31 * 60 * 1000 });
+
+    expect(proc.finalizeStaleSessions()).toBe(1);
+    await new Promise((r) => setTimeout(r, 50));
+    const closed = repo.getSession(s.id)!;
+    expect(closed.status).toBe("abandoned");
+    expect(closed.prompts_status).toBe("done"); // developer still gets recall data
+    expect(repo.listPrompts(s.id).length).toBeGreaterThan(0);
+    expect(repo.getSession(fresh.id)!.status).toBe("recording");
+  });
+});

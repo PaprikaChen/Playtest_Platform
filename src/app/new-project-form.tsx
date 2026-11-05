@@ -21,18 +21,17 @@ export function NewProjectForm() {
   }
 
   return (
-    <form onSubmit={submit} className="card space-y-3">
-      <h2 className="h2">New project</h2>
+    <form onSubmit={submit} className="space-y-3">
       <div>
         <label className="label" htmlFor="pname">Game name</label>
-        <input id="pname" className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Lantern Hop" required />
+        <input id="pname" className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Lantern Hop" required />
       </div>
       <div>
-        <label className="label" htmlFor="pdesc">What are you testing? (optional)</label>
-        <textarea id="pdesc" className="input" rows={3} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="First two levels, new jump tuning" />
+        <label className="label" htmlFor="pdesc">What are you testing? <span className="font-normal text-muted">optional</span></label>
+        <textarea id="pdesc" className="input" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="e.g. levels 1–2, new jump tuning" />
       </div>
       {error && <p className="text-sm text-bad">{error}</p>}
-      <button className="btn-primary w-full" disabled={busy || !name.trim()}>{busy ? "Creating…" : "Create project"}</button>
+      <button className="btn-primary w-full" disabled={busy || !name.trim()}>{busy ? "Creating…" : "Create game"}</button>
     </form>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { ClipPlayer } from "@/components/clip-player";
-import { fmtTime } from "@/components/ui";
+import { fmtTime } from "@/lib/format";
 import type { Question } from "@/lib/types";
 
 interface Prompt { id: string; question_id: string; quote: string; hint: string; source: string; start_ms: number; replay_start_ms: number; replay_end_ms: number; state: string }
@@ -100,9 +100,9 @@ export function Survey({ token, sessionId, projectName, audioOnly, onSubmitted }
   return (
     <main className="mx-auto max-w-3xl px-4 pt-10 pb-32">
       <header className="mb-6">
-        <p className="text-xs font-medium uppercase tracking-wider text-accent">{projectName} · after your playtest</p>
-        <h1 className="mt-1 text-3xl font-semibold tracking-tight">{title || "Questionnaire"}</h1>
-        <div className={`mt-4 flex gap-2.5 rounded-xl p-3.5 text-sm ${pending ? "bg-warn-soft text-warn" : status?.prompts === "failed" ? "bg-bad-soft text-bad" : "bg-accent-soft text-[#3d37b8]"}`}>
+        <p className="tag">Game: <span className="font-medium text-foreground">{projectName}</span></p>
+        <h1 className="mt-1 font-display text-4xl font-semibold tracking-tight">{title || "Questionnaire"}</h1>
+        <div className={`mt-4 flex gap-2.5 rounded-xl p-3.5 text-sm ${pending ? "bg-warn-soft text-warn" : status?.prompts === "failed" ? "bg-bad-soft text-bad" : "bg-accent-soft text-accent-strong"}`}>
           <span aria-hidden className="mt-0.5">{pending ? "⏳" : status?.prompts === "failed" ? "⚠️" : "💡"}</span>
           <p>
             {pending && "Finding the moments you commented on… You can start answering (and even submit) now; reminders will appear under each question when ready."}
@@ -130,7 +130,7 @@ export function Survey({ token, sessionId, projectName, audioOnly, onSubmitted }
                       <button key={n} type="button" role="radio" aria-checked={a.rating === n} onClick={() => setAns(q.id, { rating: n })}
                         className={`size-10 rounded-lg border text-sm font-medium transition-colors ${a.rating === n ? "bg-accent text-white border-accent" : "border-line bg-surface hover:border-accent/40"}`}>{n}</button>
                     ))}
-                    <span className="ml-2 text-xs text-muted">1 poor · 5 great</span>
+                    <span className="ml-2 text-xs text-muted">1 poor, 5 great</span>
                   </div>
                 )}
                 <div className="pl-9">
@@ -141,7 +141,7 @@ export function Survey({ token, sessionId, projectName, audioOnly, onSubmitted }
 
               {qp.length > 0 && (
                 <div className="border-t border-line bg-background/60 px-5 py-4">
-                  <p className="mb-2.5 pl-9 text-xs font-medium text-muted">From your playtest · {qp.length} moment{qp.length === 1 ? "" : "s"}</p>
+                  <p className="mb-2.5 flex items-baseline gap-2 pl-9"><span className="text-sm font-semibold">From your playtest</span><span className="tag">moments you mentioned, replay or add</span></p>
                   <ul className="space-y-2.5 pl-9">
                     {qp.map((p) => (
                       <li key={p.id} className={`flex gap-3 rounded-lg border bg-surface p-2.5 transition-colors ${p.state === "inserted" ? "border-ok/40" : "border-line"}`}>
@@ -153,7 +153,7 @@ export function Survey({ token, sessionId, projectName, audioOnly, onSubmitted }
                         )}
                         <div className="flex min-w-0 flex-1 flex-col">
                           <p className="text-sm leading-snug">
-                            <span className="mr-1.5 font-mono text-xs text-muted">{fmtTime(p.start_ms)} {p.source === "typed" ? "you typed" : "you said"}</span>
+                            <span className="num mr-1.5 text-xs font-semibold text-accent-strong">{fmtTime(p.start_ms)}</span><span className="mr-1.5 text-xs text-muted">{p.source === "typed" ? "you typed" : "you said"}</span>
                             <span className="italic">“{p.quote}”</span>
                           </p>
                           <p className="mt-1 text-xs text-muted">{p.hint}</p>
