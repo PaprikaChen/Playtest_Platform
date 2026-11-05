@@ -66,6 +66,31 @@ describe("creator → tester → review flow", () => {
     expect(JSON.parse(ans.prompt_ids_json)).toEqual([hard.id]); // unknown prompt id dropped
   });
 
+  it("records whether the tester inserted their quote or the AI wording (decision 0005)", async () => {
+    const p = repo.createProject("Provenance");
+    const b = await repo.createBuild(p.id, "v1", "game.zip", await sampleZip());
+    const q = repo.saveQuestionnaire(p.id, "", [{ type: "text", prompt: "Which part felt too difficult?" }]);
+    const s = repo.createSession(repo.createInvite(p.id, b.id, q.id).token, "Ana", "comments-only", null);
+    repo.addUtterances(s.id, [
+      { source: "typed", text: "this jump is too hard", start_ms: 12_000, end_ms: 12_000 },
+      { source: "typed", text: "the jump at the end is too hard too", start_ms: 20_000, end_ms: 20_000 },
+    ]);
+    repo.updateSession(s.id, { status: "processing" });
+    await proc.processSession(s.id);
+    const [a, c] = repo.listPrompts(s.id);
+    expect(a.inserted_as).toBeNull();
+
+    repo.setPromptState(s.id, a.id, "inserted", "summary");
+    repo.setPromptState(s.id, c.id, "inserted", "quote");
+    expect(repo.listPrompts(s.id).map((x) => x.inserted_as)).toEqual(["summary", "quote"]);
+    // Dismissing afterwards keeps the record: the inserted wording may still be in the answer.
+    repo.setPromptState(s.id, a.id, "dismissed");
+    expect(repo.listPrompts(s.id)[0]).toMatchObject({ state: "dismissed", inserted_as: "summary" });
+
+    expect(() => repo.setPromptState(s.id, a.id, "inserted", "made-up")).toThrow(/Invalid/);
+    expect(() => repo.setPromptState(s.id, a.id, "bogus")).toThrow(/Invalid/);
+  });
+
   it("enforces invite and session scoping", async () => {
     const p1 = repo.createProject("A");
     const p2 = repo.createProject("B");

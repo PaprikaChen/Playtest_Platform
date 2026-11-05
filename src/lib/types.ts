@@ -26,6 +26,8 @@ export interface RecallPrompt {
   replay_start_ms: number;
   replay_end_ms: number;
   state: "shown" | "inserted" | "dismissed";
+  /** What the tester inserted into their answer: their own quote or the AI wording. Kept after a later dismiss. */
+  inserted_as: "quote" | "summary" | null;
 }
 
 export interface SessionRow {

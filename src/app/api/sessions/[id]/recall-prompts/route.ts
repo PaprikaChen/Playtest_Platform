@@ -1,7 +1,6 @@
-import { run } from "@/lib/db";
 import { json, route, testerToken, readJson } from "@/lib/http";
 import { isProcessing, processSession } from "@/lib/processing";
-import { getQuestionnaire, HttpError, listAnswers, listPrompts, listUtterances, requireTesterSession } from "@/lib/repo";
+import { getQuestionnaire, listAnswers, listPrompts, listUtterances, requireTesterSession, setPromptState } from "@/lib/repo";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -30,7 +29,6 @@ export const PATCH = route(async (req: Request, { params }: Ctx) => {
   const { id } = await params;
   requireTesterSession(id, testerToken(req));
   const body = await readJson(req);
-  if (!["shown", "inserted", "dismissed"].includes(body.state)) throw new HttpError(400, "Invalid state.");
-  run("UPDATE recall_prompts SET state=? WHERE id=? AND session_id=?", body.state, String(body.promptId), id);
+  setPromptState(id, String(body.promptId), String(body.state), body.insertedAs == null ? null : String(body.insertedAs));
   return json({ ok: true });
 });

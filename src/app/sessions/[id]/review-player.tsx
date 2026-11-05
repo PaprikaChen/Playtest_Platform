@@ -5,6 +5,13 @@ import { fmtTime } from "@/lib/format";
 import { Panel } from "@/components/ui";
 import type { Question, RecallPrompt, Utterance } from "@/lib/types";
 
+// Old sessions (before decision 0005's provenance) have inserted_as = null: show plain "Used".
+function usedLabel(p: RecallPrompt) {
+  if (p.inserted_as === "summary") return "Used AI wording";
+  if (p.inserted_as === "quote") return "Used quote";
+  return p.state === "inserted" ? "Used" : p.state === "dismissed" ? "Dismissed" : "Shown";
+}
+
 type Q = Question & { answer: { text: string; rating: number | null } | null; prompts: (RecallPrompt & { used: boolean; quote: string; moment_ms: number })[] };
 
 export function ReviewPlayer({ sessionId, projectId, hasRecording, audioOnly, durationMs, utterances, questions }: { sessionId: string; projectId: string; hasRecording: boolean; audioOnly: boolean; durationMs: number; utterances: Utterance[]; questions: Q[] }) {
@@ -75,6 +82,12 @@ export function ReviewPlayer({ sessionId, projectId, hasRecording, audioOnly, du
                     </p>
                   )}
                   <p className="whitespace-pre-wrap text-sm">{q.answer?.text || <span className="text-muted">No answer</span>}</p>
+                  {q.answer?.text && q.prompts.some((p) => p.inserted_as === "summary") && (
+                    <p className="flex items-baseline gap-1.5 text-xs text-muted">
+                      <span className="pill shrink-0 whitespace-nowrap bg-warn-soft text-warn">Includes AI wording</span>
+                      <span>inserted from an AI rewording, maybe edited after</span>
+                    </p>
+                  )}
                   {q.prompts.length > 0 && (
                     <div className="rounded-xl bg-background p-2">
                       <p className="px-1.5 pb-1 text-xs text-muted">Reminders shown</p>
@@ -84,7 +97,7 @@ export function ReviewPlayer({ sessionId, projectId, hasRecording, audioOnly, du
                           <span className="flex items-baseline gap-2">
                             <span className="num shrink-0 text-xs font-semibold text-accent-strong">{fmtTime(p.moment_ms)}</span>
                             <span className="truncate italic">“{p.quote}”</span>
-                            <span className={`pill ml-auto shrink-0 ${p.state === "inserted" ? "bg-ok-soft text-ok" : p.state === "dismissed" ? "bg-surface text-muted" : "bg-accent-soft text-accent-strong"}`}>{p.state === "inserted" ? "Used" : p.state === "dismissed" ? "Dismissed" : "Shown"}</span>
+                            <span className={`pill ml-auto shrink-0 ${p.inserted_as === "summary" ? "bg-warn-soft text-warn" : p.state === "inserted" || p.inserted_as ? "bg-ok-soft text-ok" : p.state === "dismissed" ? "bg-surface text-muted" : "bg-accent-soft text-accent-strong"}`}>{usedLabel(p)}</span>
                           </span>
                           {p.summary && (
                             <span className="mt-0.5 flex items-baseline gap-1.5 text-xs text-muted">

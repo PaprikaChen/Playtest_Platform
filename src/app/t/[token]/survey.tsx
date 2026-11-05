@@ -83,15 +83,16 @@ export function Survey({ token, sessionId, projectName, audioOnly, onSubmitted }
     setAnswers((all) => ({ ...all, [qid]: { ...(all[qid] ?? { text: "", rating: null, promptIds: [] }), ...patch } }));
   };
 
-  function setPromptState(p: Prompt, state: "inserted" | "dismissed" | "shown") {
+  function setPromptState(p: Prompt, state: "inserted" | "dismissed" | "shown", insertedAs?: "quote" | "summary") {
     setPrompts((ps) => ps.map((x) => (x.id === p.id ? { ...x, state } : x)));
     // keepalive: an immediate reload must not cancel the card-state update.
-    void fetch(`/api/sessions/${sessionId}/recall-prompts`, { method: "PATCH", headers, keepalive: true, body: JSON.stringify({ promptId: p.id, state }) });
+    void fetch(`/api/sessions/${sessionId}/recall-prompts`, { method: "PATCH", headers, keepalive: true, body: JSON.stringify({ promptId: p.id, state, insertedAs }) });
   }
-  function insert(p: Prompt, line: string) {
+  // insertedAs tells the developer whether these words are the tester's quote or AI wording (decision 0005).
+  function insert(p: Prompt, line: string, insertedAs: "quote" | "summary") {
     const a = ans(p.question_id);
     setAns(p.question_id, { text: a.text ? `${a.text.trimEnd()}\n${line}` : line, promptIds: [...new Set([...a.promptIds, p.id])] });
-    setPromptState(p, "inserted");
+    setPromptState(p, "inserted", insertedAs);
   }
   const quoteLine = (p: Prompt) => `At ${fmtTime(p.start_ms)} I said “${p.quote}”. `;
 
@@ -177,9 +178,9 @@ export function Survey({ token, sessionId, projectName, audioOnly, onSubmitted }
                             </p>
                           )}
                           <div className="mt-auto flex flex-wrap gap-1.5 pt-2">
-                            <button type="button" className="btn-ghost py-1 text-xs" disabled={p.state === "inserted"} onClick={() => insert(p, quoteLine(p))}>{p.state === "inserted" ? "Added ✓" : p.summary ? "Add quote" : "Add to my answer"}</button>
+                            <button type="button" className="btn-ghost py-1 text-xs" disabled={p.state === "inserted"} onClick={() => insert(p, quoteLine(p), "quote")}>{p.state === "inserted" ? "Added ✓" : p.summary ? "Add quote" : "Add to my answer"}</button>
                             {p.summary && (
-                              <button type="button" className="btn-ghost py-1 text-xs" disabled={p.state === "inserted"} onClick={() => insert(p, p.summary)} title="Inserts this wording into your answer; edit it to match what you mean.">Use this wording</button>
+                              <button type="button" className="btn-ghost py-1 text-xs" disabled={p.state === "inserted"} onClick={() => insert(p, p.summary, "summary")} title="Inserts this wording into your answer; edit it to match what you mean.">Use this wording</button>
                             )}
                             <button type="button" className="btn py-1 text-xs text-muted hover:text-foreground" onClick={() => setPromptState(p, "dismissed")}>Dismiss</button>
                           </div>

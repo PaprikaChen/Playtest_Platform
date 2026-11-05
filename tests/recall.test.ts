@@ -85,5 +85,7 @@ describe("buildRecallPrompt", () => {
     expect(p).toContain('"summary"');
     expect(p.toLowerCase()).toContain("same language");
     expect(p).toContain("FIRST PERSON");
+    // "a bit hard" must not become "very hard": the summary keeps the tester's own intensity.
+    expect(p).toContain("Do not strengthen or soften");
   });
 });
