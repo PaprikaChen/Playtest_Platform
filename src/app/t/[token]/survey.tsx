@@ -85,7 +85,8 @@ export function Survey({ token, sessionId, projectName, audioOnly, onSubmitted }
 
   function setPromptState(p: Prompt, state: "inserted" | "dismissed" | "shown") {
     setPrompts((ps) => ps.map((x) => (x.id === p.id ? { ...x, state } : x)));
-    void fetch(`/api/sessions/${sessionId}/recall-prompts`, { method: "PATCH", headers, body: JSON.stringify({ promptId: p.id, state }) });
+    // keepalive: an immediate reload must not cancel the card-state update.
+    void fetch(`/api/sessions/${sessionId}/recall-prompts`, { method: "PATCH", headers, keepalive: true, body: JSON.stringify({ promptId: p.id, state }) });
   }
   function insert(p: Prompt) {
     const a = ans(p.question_id);

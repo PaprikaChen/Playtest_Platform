@@ -85,13 +85,14 @@ test("turned-off invite link blocks testers", async ({ page, context }) => {
 });
 
 test("game switcher lists games and switches between them", async ({ page }) => {
-  await newGame(page, "Switch A");
-  await newGame(page, "Switch B");
+  const id = Date.now(); // unique per run: tests share one database across repeats
+  await newGame(page, `Switch A ${id}`);
+  await newGame(page, `Switch B ${id}`);
   await page.getByRole("button", { name: /Game/ }).first().click();
   const list = page.getByRole("listbox", { name: "Switch game" });
-  await expect(list.getByRole("option", { name: /Switch A/ })).toBeVisible();
-  await list.getByRole("option", { name: /Switch A/ }).click();
-  await expect(page.getByRole("heading", { level: 1, name: "Switch A" })).toBeVisible();
+  await expect(list.getByRole("option", { name: `Switch A ${id}` })).toBeVisible();
+  await list.getByRole("option", { name: `Switch A ${id}` }).click();
+  await expect(page.getByRole("heading", { level: 1, name: `Switch A ${id}` })).toBeVisible();
 });
 
 test("game files: nested folder, Unicode names, pre-compressed .br", async ({ page }) => {
