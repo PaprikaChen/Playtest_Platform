@@ -27,7 +27,24 @@ describe("sanitizeMatches", () => {
       questions,
       utterances,
     );
-    expect(out).toEqual([{ question_id: "q_a", utterance_id: "u1", hint: "You mentioned this jump. Say more?" }]);
+    expect(out).toEqual([{ question_id: "q_a", utterance_id: "u1", hint: "You mentioned this jump. Say more?", summary: "" }]);
+  });
+
+  it("keeps a summary, normalises whitespace, and caps its length", () => {
+    const out = sanitizeMatches(
+      {
+        matches: [
+          { question_id: "q_a", utterance_id: "u1", hint: "h", summary: "  The tester found\n the jump too hard.  " },
+          { question_id: "q_c", utterance_id: "u2", hint: "h", summary: "x".repeat(1000) },
+          { question_id: "q_b", utterance_id: "u3", hint: "h", summary: 42 },
+        ],
+      },
+      questions,
+      utterances,
+    );
+    expect(out[0].summary).toBe("The tester found the jump too hard.");
+    expect(out[1].summary).toHaveLength(400);
+    expect(out[2].summary).toBe("42"); // coerced, never crashes
   });
 
   it("handles malformed model output", () => {
@@ -50,6 +67,10 @@ describe("mockRecall", () => {
     expect(pairs).not.toContain("q_a:u3");
     expect(r.placeholder).toBe(true);
   });
+
+  it("produces no summaries (they require a real model)", () => {
+    for (const m of mockRecall(questions, utterances).matches) expect(m.summary).toBe("");
+  });
 });
 
 describe("buildRecallPrompt", () => {
@@ -57,5 +78,11 @@ describe("buildRecallPrompt", () => {
     const p = buildRecallPrompt(questions, utterances);
     expect(p).toContain("u1 [1:03]: this jump is impossible");
     expect(p).toContain('"matches"');
+  });
+
+  it("asks for a grounded summary in the tester's language", () => {
+    const p = buildRecallPrompt(questions, utterances);
+    expect(p).toContain('"summary"');
+    expect(p.toLowerCase()).toContain("same language");
   });
 });

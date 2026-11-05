@@ -87,6 +87,7 @@ CREATE TABLE IF NOT EXISTS recall_prompts (
   question_id TEXT NOT NULL,
   utterance_id TEXT NOT NULL REFERENCES utterances(id) ON DELETE CASCADE,
   hint TEXT NOT NULL,
+  summary TEXT NOT NULL DEFAULT '',
   replay_start_ms INTEGER NOT NULL,
   replay_end_ms INTEGER NOT NULL,
   state TEXT NOT NULL DEFAULT 'shown'
@@ -121,6 +122,7 @@ export function db(): DatabaseSync {
 function migrate(conn: DatabaseSync) {
   const cols = (table: string) => (conn.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]).map((c) => c.name);
   if (!cols("sessions").includes("language")) conn.exec("ALTER TABLE sessions ADD COLUMN language TEXT");
+  if (!cols("recall_prompts").includes("summary")) conn.exec("ALTER TABLE recall_prompts ADD COLUMN summary TEXT NOT NULL DEFAULT ''");
 }
 
 type Row = Record<string, unknown>;

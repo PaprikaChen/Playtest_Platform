@@ -1,7 +1,7 @@
 import type { Question } from "../types";
 
 export interface RecallInputUtterance { id: string; text: string; start_ms: number }
-export interface RecallMatch { question_id: string; utterance_id: string; hint: string }
+export interface RecallMatch { question_id: string; utterance_id: string; hint: string; summary: string }
 export interface RecallResult { provider: string; model: string | null; placeholder: boolean; matches: RecallMatch[] }
 
 export const MAX_PROMPTS_PER_QUESTION = 3;
@@ -25,6 +25,10 @@ Rules:
 - For each match write "hint": ONE short, neutral sentence (max 20 words) inviting the tester to expand.
   Do not judge, do not add sentiment the tester did not express, do not suggest an answer.
   Good: "You mentioned the jump here. Want to say more about it?"
+- For each match also write "summary": 1-2 sentences restating what the tester expressed in that comment,
+  including any suggestion the tester themselves voiced. Ground it ONLY in the tester's comments:
+  no sentiment they did not express, no advice of your own, no judgement of the game.
+  Write the summary in the same language as the comment.
 - Refer to comments only by their id. Do not quote or rewrite them.
 
 QUESTIONS
@@ -33,7 +37,7 @@ ${qs}
 COMMENTS
 ${us}
 
-Respond with JSON only: {"matches":[{"question_id":"...","utterance_id":"...","hint":"..."}]}`;
+Respond with JSON only: {"matches":[{"question_id":"...","utterance_id":"...","hint":"...","summary":"..."}]}`;
 }
 
 /** Keep only matches that reference real IDs, de-duplicate, cap per question. */
@@ -49,11 +53,13 @@ export function sanitizeMatches(raw: unknown, questions: Question[], utterances:
     const q = String(m?.question_id ?? "");
     const u = String(m?.utterance_id ?? "");
     const hint = String(m?.hint ?? "").replace(/\s+/g, " ").trim().slice(0, 200);
+    // The summary is AI-generated display text: whitespace-normalised and capped, never trusted as-is.
+    const summary = String(m?.summary ?? "").replace(/\s+/g, " ").trim().slice(0, 400);
     if (!qids.has(q) || !uids.has(u) || seen.has(`${q}|${u}`)) continue;
     if ((perQ.get(q) ?? 0) >= MAX_PROMPTS_PER_QUESTION) continue;
     seen.add(`${q}|${u}`);
     perQ.set(q, (perQ.get(q) ?? 0) + 1);
-    out.push({ question_id: q, utterance_id: u, hint: hint || "You commented on this while playing. Want to say more?" });
+    out.push({ question_id: q, utterance_id: u, hint: hint || "You commented on this while playing. Want to say more?", summary });
   }
   return out;
 }
@@ -94,7 +100,8 @@ export function mockRecall(questions: Question[], utterances: RecallInputUtteran
       .sort((a, b) => b.score - a.score)
       .slice(0, MAX_PROMPTS_PER_QUESTION);
     for (const { u } of scored) {
-      matches.push({ question_id: q.id, utterance_id: u.id, hint: `You commented on this around ${fmt(u.start_ms)}. Want to say more about it?` });
+      // No summary from the keyword matcher: a summary that just echoes the quote adds noise, not recall.
+      matches.push({ question_id: q.id, utterance_id: u.id, hint: `You commented on this around ${fmt(u.start_ms)}. Want to say more about it?`, summary: "" });
     }
   }
   return { provider: "mock", model: null, placeholder: true, matches };

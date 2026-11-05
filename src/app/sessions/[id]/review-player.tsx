@@ -80,10 +80,18 @@ export function ReviewPlayer({ sessionId, projectId, hasRecording, audioOnly, du
                       <p className="px-1.5 pb-1 text-xs text-muted">Reminders shown</p>
                       {q.prompts.map((p) => (
                         <button key={p.id} type="button" onClick={() => seek(p.replay_start_ms)} disabled={!hasRecording}
-                          className="flex w-full items-baseline gap-2 rounded-lg px-1.5 py-1 text-left text-sm hover:bg-surface">
-                          <span className="num shrink-0 text-xs font-semibold text-accent-strong">{fmtTime(p.moment_ms)}</span>
-                          <span className="truncate italic">“{p.quote}”</span>
-                          <span className={`pill ml-auto shrink-0 ${p.state === "inserted" ? "bg-ok-soft text-ok" : p.state === "dismissed" ? "bg-surface text-muted" : "bg-accent-soft text-accent-strong"}`}>{p.state === "inserted" ? "Used" : p.state === "dismissed" ? "Dismissed" : "Shown"}</span>
+                          className="w-full rounded-lg px-1.5 py-1 text-left text-sm hover:bg-surface">
+                          <span className="flex items-baseline gap-2">
+                            <span className="num shrink-0 text-xs font-semibold text-accent-strong">{fmtTime(p.moment_ms)}</span>
+                            <span className="truncate italic">“{p.quote}”</span>
+                            <span className={`pill ml-auto shrink-0 ${p.state === "inserted" ? "bg-ok-soft text-ok" : p.state === "dismissed" ? "bg-surface text-muted" : "bg-accent-soft text-accent-strong"}`}>{p.state === "inserted" ? "Used" : p.state === "dismissed" ? "Dismissed" : "Shown"}</span>
+                          </span>
+                          {p.summary && (
+                            <span className="mt-0.5 flex items-baseline gap-1.5 text-xs text-muted">
+                              <span className="pill shrink-0 bg-accent-soft text-accent-strong">AI summary</span>
+                              <span>{p.summary}</span>
+                            </span>
+                          )}
                         </button>
                       ))}
                     </div>
