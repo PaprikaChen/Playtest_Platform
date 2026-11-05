@@ -1,0 +1,7 @@
+{
+  // Typecheck sources only. Next's generated .next*/types change while dev/E2E servers run,
+  // which made `tsc` fail with TS6053 (missing generated files) at random.
+  "extends": "./tsconfig.json",
+  "include": ["next-env.d.ts", "src/**/*.ts", "src/**/*.tsx", "tests/**/*.ts", "e2e/**/*.ts", "*.ts"],
+  "exclude": ["node_modules", ".next", ".next-build", ".next-e2e"]
+}
