@@ -1,55 +1,66 @@
-# Handoff: shift 1 (Amilia) → shift 2 (Paprika)
+# Handoff: shift 2 (Paprika) → next shift
 
-*Updated 2026-11-05 by Amilia with Claude Code. Regenerate with the `shift-handoff` skill at the end of each shift.*
+*Updated 2026-11-05 by Paprika with Claude Code. Regenerate with the `shift-handoff` skill at the end of each shift.*
 
 ## State in one paragraph
-The alpha runs the whole loop locally:
-- game → ZIP upload → questions → invite link
-- tester plays with screen + mic, and notes
-- the recording is transcribed with **word timestamps (local Whisper, free)**
-- questionnaire with **recall cards** (the tester's own words, a neutral hint, a 10 s replay)
-- developer review with a moment timeline
-
-All of it is on branch `alpha-release`, in **PR #30 (open, CI green)**. It's verified with 31 unit tests and 7
-Playwright tests in real Chrome that use a fake screen and a fake mic playing synthesized speech. **No real human has
-played it with a real mic yet** (#15).
+Everything is merged on `main` (no open PRs, no unpushed commits). On top of shift 1's alpha:
+- **The first real human playtest happened** (#15, Chinese speech, real mic, two sessions): transcription and timestamps
+  held up, and it caught a real bug — replay seeks past ~16 s failed with `PIPELINE_ERROR_DECODE`. Fixed in PR #36:
+  recordings are now remuxed losslessly with ffmpeg (clusters re-cut at keyframes); `makeSeekable` is only the fallback.
+- **AI summaries shipped** (PR #38 + #39, decision 0005): each recall card also carries a first-person "One way to put
+  it" rewording of the tester's comment (same language, intensity preserved, never strengthened or softened). Testers
+  insert it with an explicit button; developers see "AI summary" per reminder, "Used quote" / "Used AI wording" per
+  card, and an "Includes AI wording" label under answers containing AI text.
+- **A real provider is wired up**: `ANTHROPIC_API_KEY` in `.env.local` (Paprika's key, claude-haiku-5-5). Verified
+  against the real Chinese sessions: matching works across languages (the keyword mock extracts zero tokens from
+  Chinese — Chinese testers *require* a real provider), summaries are faithful and keep intensity.
+- Verified by 38 unit tests + 11 Playwright tests, which now also run on Windows (CI and both dev machines).
 
 ## Run it
 ```bash
 npm install
-npm run dev     # http://localhost:3000 (first transcription downloads an ~80 MB model into .models/)
-npm run check   # lint + typecheck + unit tests (also runs automatically before every git push)
-npm run e2e     # full browser flow, writes screenshots to docs/screenshots/e2e-*.png
+npm run dev     # http://localhost:3000
+npm run check   # lint + typecheck + unit tests (pre-push hook runs this)
+npm run e2e     # pinned to the keyword mock — your .env.local key is deliberately NOT used (see gotchas)
 ```
-Read `CLAUDE.md` first: map, invariants, gotchas, and the workflow every change follows.
+Recall uses the real model only with a key in `.env.local` (`ANTHROPIC_API_KEY=` / `RECALL_PROVIDER=anthropic`); ask
+Paprika for hers or create your own. Without a key the keyword placeholder runs — fine for English, empty for Chinese.
 
 ## Open items, in order
-1. **Review and merge PR #30** into `main`. Focus on `src/lib/repo.ts` (access checks), `src/lib/ai/` and
-   `src/app/t/[token]/`.
-2. **#15 Real playtest in Chrome:** play the sample game with a real mic, check that transcript timing feels right,
-   record the demo video. This is the biggest unverified risk.
-3. **#16 Choose the recall LLM:** build ~30 labeled comment → question pairs; compare Gemini, GPT and Claude Haiku
-   against the keyword placeholder on accuracy, neutrality and tokens per session. Recall currently uses keyword
-   matching (labeled "placeholder" in the UI).
-4. **#18 / #19 Auth + Supabase:** there's no login today (local creator mode). See decision 0001.
-5. **#20 Isolated origin for game files** (decision 0003), and **#23 / #24 / #25** (in progress; each issue has a comment
-   saying what's left).
+1. **#15 — record the demo video** (the real playtest is done; the video is not). Best flow to show: upload →
+   play + talk → recall cards with "One way to put it" → insert → developer review with the AI-wording labels.
+2. **Alpha report** (`docs/Alpha_Release_Task_Backlog.docx`, due Nov 5): check the layout by actually opening it, add
+   the demo video link and a board screenshot, rewrite the AI reflection in our own words. Fresh material in ai-log
+   015–017: the human playtest caught what 7 green E2E runs missed; a real key silently leaked into E2E; two human
+   corrections shaped the summary feature (first person; intensity rule + provenance).
+3. **Board**: make it public before submitting and add Paprika as editor (both on Amilia's account). Move #35/#37
+   cards to Done (labels already flipped).
+4. **#16 — choose the recall LLM** with a labeled set. New graded dimensions from this shift: summary faithfulness,
+   intensity preservation, no added sentiment. Only claude-haiku-5-5 is verified so far.
+5. **#17–#20** as before (real-key transcription; auth; Supabase; isolated origin), then #23/#24/#25 (in progress).
 
 ## Not verified / known risks
-- Real-mic, noisy or accented speech. The accuracy test uses clean synthesized audio.
-- OpenAI / AssemblyAI transcription paths: no API keys yet.
-- The E2E job in CI is new. Its first run will tell us whether Chromium on Linux handles the fake media flags.
-- Local Whisper is too heavy for serverless hosting. A deploy needs `TRANSCRIBE_PROVIDER=openai|assemblyai` or a worker.
-- Mandarin transcripts come out in Traditional characters.
-- A one-off dev-server error (`__webpack_require__.C is not a function`) appeared once and didn't recur.
+- Real-model behaviour is verified **only for claude-haiku-5-5**; whether Gemini/OpenAI obey the summary rules is #16.
+- The summary insert buttons have no automated browser test: E2E runs the mock, which produces no summaries.
+- OpenAI / AssemblyAI transcription paths: still no key (#17).
+- Whisper with noise, accents, bad mics: the real test was one quiet room. Mandarin transcripts still mix
+  Traditional/Simplified; summaries follow the comment's script.
+- Accessibility (screen reader) and phone-width play layout: untested.
+- The report .docx layout has still never been opened and checked.
 
 ## Decisions pending a human
-- **Make the board public?** It's private at https://github.com/users/amilialiu25/projects/1. The plan is to make it
-  public right before submitting, so graders can open the link. Add Paprika under ⋯ → Settings → Manage access to let
-  her edit it. The repo itself is already public.
-- **Which LLM provider** (#16), after the eval.
-- **Report:** `docs/Alpha_Release_Task_Backlog.docx`. It needs the demo video link, a board screenshot, and edits to the
-  AI reflection in your own words.
+- **Board public + access** (Amilia): see open item 3.
+- **LLM provider** (#16) — after the eval; Haiku is a stopgap default, not a decision.
+- Whether merged remote branches (`fix/31-…`, `feat/37-…`, `fix/38-…`) get deleted (cleanup only).
+
+## Gotchas (new this shift; the rest in CLAUDE.md)
+- **Next.js loads `.env.local` into anything it starts** — the E2E server too. Playwright pins `RECALL_PROVIDER=mock`
+  so tests stay deterministic and free; don't remove that pin.
+- `makeSeekable` (ts-ebml) cues can point at clusters Chrome can't decode from — that's why ffmpeg remux is primary.
+  The webm unit test asserts the keyframe-cluster invariant; keep it.
+- Deleting a merged PR's base branch **closes** stacked PRs on GitHub instead of retargeting them (hit this with #38 —
+  reopened and retargeted by hand). Merge stacked PRs bottom-up and retarget children before deleting branches.
+- Recall `max_tokens` is 16000: summaries grow output with match count; 2000 truncated an 11-match session mid-JSON.
 
 ## How we track work
 - GitHub issue labels (`status:`, `priority:`, `area:`) are the source of truth. The board's Status / Priority / Area
