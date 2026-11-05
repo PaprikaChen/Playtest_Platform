@@ -90,7 +90,8 @@ CREATE TABLE IF NOT EXISTS recall_prompts (
   summary TEXT NOT NULL DEFAULT '',
   replay_start_ms INTEGER NOT NULL,
   replay_end_ms INTEGER NOT NULL,
-  state TEXT NOT NULL DEFAULT 'shown'
+  state TEXT NOT NULL DEFAULT 'shown',
+  inserted_as TEXT
 );
 CREATE TABLE IF NOT EXISTS answers (
   id TEXT PRIMARY KEY,
@@ -123,6 +124,7 @@ function migrate(conn: DatabaseSync) {
   const cols = (table: string) => (conn.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]).map((c) => c.name);
   if (!cols("sessions").includes("language")) conn.exec("ALTER TABLE sessions ADD COLUMN language TEXT");
   if (!cols("recall_prompts").includes("summary")) conn.exec("ALTER TABLE recall_prompts ADD COLUMN summary TEXT NOT NULL DEFAULT ''");
+  if (!cols("recall_prompts").includes("inserted_as")) conn.exec("ALTER TABLE recall_prompts ADD COLUMN inserted_as TEXT");
 }
 
 type Row = Record<string, unknown>;

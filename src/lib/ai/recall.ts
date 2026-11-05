@@ -28,7 +28,8 @@ Rules:
 - For each match also write "summary": 1-2 sentences in the tester's FIRST PERSON ("I ..."), phrasing what they
   expressed in that comment as a possible written answer, including any suggestion they themselves voiced.
   Ground it ONLY in the tester's comments: no sentiment they did not express, no advice of your own,
-  no judgement of the game. Write the summary in the same language as the comment.
+  no judgement of the game. Do not strengthen or soften what they said: keep their intensity and
+  hedges ("a bit hard" stays "a bit hard", never "very hard"). Write the summary in the same language as the comment.
   Good: "I found the second level very hard and didn't understand why failing sent me back to level one."
 - Refer to comments only by their id. Do not quote or rewrite them.
 

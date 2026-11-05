@@ -208,6 +208,15 @@ export const listUtterances = (sessionId: string) =>
 export const listPrompts = (sessionId: string) =>
   all<RecallPrompt>("SELECT * FROM recall_prompts WHERE session_id=? ORDER BY replay_start_ms", sessionId);
 
+const PROMPT_STATES = ["shown", "inserted", "dismissed"];
+const INSERTED_AS = ["quote", "summary"];
+/** Card state from the tester. `insertedAs` is sticky: once AI wording went into an answer, the developer must see it. */
+export function setPromptState(sessionId: string, promptId: string, state: string, insertedAs?: string | null) {
+  if (!PROMPT_STATES.includes(state)) throw new HttpError(400, "Invalid state.");
+  if (insertedAs != null && (state !== "inserted" || !INSERTED_AS.includes(insertedAs))) throw new HttpError(400, "Invalid insertedAs.");
+  run("UPDATE recall_prompts SET state=?, inserted_as=COALESCE(?, inserted_as) WHERE id=? AND session_id=?", state, insertedAs ?? null, promptId, sessionId);
+}
+
 export interface Answer { id: string; session_id: string; question_id: string; text: string; rating: number | null; prompt_ids_json: string; updated_at: number }
 export const listAnswers = (sessionId: string) => all<Answer>("SELECT * FROM answers WHERE session_id=?", sessionId);
 

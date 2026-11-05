@@ -5,7 +5,8 @@ Context for AI coding agents (Claude Code, Codex, etc.) working in this repo. Hu
 ## Product in one paragraph
 Indie developers upload a web-game ZIP, write a questionnaire and share one invite link. Testers play in the browser while
 screen + mic are recorded on one timeline and they type comments. After playing, each question shows **recall cards**
-(tester's own words + timestamp + neutral hint + 10 s replay). **Nothing is filled in automatically.** Developers review
+(tester's own words + timestamp + neutral hint + 10 s replay, plus an AI first-person rewording when a real model runs,
+decision 0005). **Nothing is filled in automatically.** Developers review
 video, timeline and answers. Source of truth: `project_proposal.pdf`, `playtest_feedback_technical_spec (3).pdf`.
 
 ## Commands
@@ -34,8 +35,9 @@ Node ≥ 22.5 (built-in `node:sqlite`). Data goes in `./data` (git-ignored). Sam
    LLM output may only reference `question_id` / `utterance_id`; `sanitizeMatches` drops anything else.
 2. **Hints are neutral; summaries only restate the tester.** Hints carry no sentiment the tester didn't express and no
    suggested answers. An AI summary (decision 0005) is a first-person rewording of the tester's own meaning and voiced
-   suggestions, nothing beyond them; it is labeled ("AI summary" for developers, "One way to put it" for testers), and
-   inserting it is an explicit tester action.
+   suggestions, nothing beyond them (never stronger or softer); it is labeled ("AI summary" for developers, "One way to
+   put it" for testers), inserting it is an explicit tester action, and the review marks answers that include it
+   (`inserted_as`).
 3. **The questionnaire never blocks on AI.** Pending or failed transcription/prompts must leave submission working.
 4. **Tester endpoints require the invite token** (`x-invite-token` header or `?t=` for media), and sessions are bound to their invite.
 5. **Build files are static only.** Never execute uploaded code server-side. Games run in a sandboxed iframe **without** `allow-same-origin`.
