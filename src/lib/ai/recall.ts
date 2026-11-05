@@ -144,7 +144,9 @@ async function callProvider(provider: string, prompt: string): Promise<{ model: 
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "content-type": "application/json", "x-api-key": process.env.ANTHROPIC_API_KEY ?? "", "anthropic-version": "2023-06-01" },
-      body: JSON.stringify({ model, max_tokens: 2000, messages: [{ role: "user", content: prompt }] }),
+      // Summaries made the output grow with match count: 2000 tokens truncated an
+      // 11-match Chinese session mid-JSON and the whole prompts stage failed.
+      body: JSON.stringify({ model, max_tokens: 16000, messages: [{ role: "user", content: prompt }] }),
     });
     if (!res.ok) throw new Error(`Anthropic error ${res.status}: ${await res.text()}`);
     const body = await res.json();

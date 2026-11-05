@@ -49,3 +49,6 @@ and the human chose both, which forced the invariant refinement to be written do
 drifting. Summary quality/steering now needs explicit grading in the #16 eval and watching in the #26 pilot.
 Second lesson: adding the first real API key changed what the E2E suite tested without anyone touching the suite —
 environment that a framework loads implicitly (`.env.local`) must be pinned in test configs, not inherited.
+Third catch (second real-data run): summaries made the model's output grow with match count, and the hardcoded
+`max_tokens: 2000` truncated an 11-match Chinese session mid-JSON — the prompts stage failed cleanly (invariant 3 held:
+the questionnaire still worked). Raised to 16000. Output budgets must scale with what the prompt now asks for.
