@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import { route } from "@/lib/http";
 import { recordingPath } from "@/lib/paths";
+import { parseRange } from "@/lib/range";
 import { getSession, HttpError, requireTesterSession } from "@/lib/repo";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -17,11 +18,10 @@ export const GET = route(async (req: Request, { params }: Ctx) => {
 
   const size = fs.statSync(file).size;
   const type = s.recording_mime?.split(";")[0] || "video/webm";
-  const range = req.headers.get("range")?.match(/bytes=(\d*)-(\d*)/);
+  const range = parseRange(req.headers.get("range"), size);
+  if (range === "unsatisfiable") return new Response(null, { status: 416, headers: { "content-range": `bytes */${size}` } });
   if (range) {
-    const start = range[1] ? Number(range[1]) : 0;
-    const end = range[2] ? Math.min(Number(range[2]), size - 1) : size - 1;
-    if (start >= size) return new Response(null, { status: 416, headers: { "content-range": `bytes */${size}` } });
+    const { start, end } = range;
     const stream = fs.createReadStream(file, { start, end });
     return new Response(stream as unknown as ReadableStream, {
       status: 206,

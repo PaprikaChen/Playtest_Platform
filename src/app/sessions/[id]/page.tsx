@@ -31,7 +31,7 @@ export default async function SessionReview({ params }: { params: Promise<{ id: 
       <header className="mb-6 flex flex-wrap items-end gap-x-6 gap-y-3">
         <div className="min-w-0 flex-1">
           <p className="tag">Tester session</p>
-          <h1 className="flex items-center gap-3 font-display text-4xl font-semibold tracking-tight">{s.tester_name} <Status value={s.status} /></h1>
+          <h1 className="flex flex-wrap items-center gap-3 font-display text-4xl font-semibold tracking-tight [overflow-wrap:anywhere]">{s.tester_name} <Status value={s.status} /></h1>
         </div>
         <dl className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
           <Meta label="Played" value={fmtDate(s.created_at)} />

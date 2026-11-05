@@ -44,16 +44,16 @@ export function ReviewPlayer({ sessionId, projectId, hasRecording, audioOnly, du
                 <h3 className="text-sm font-semibold">Moments</h3>
                 <span className="tag">click to jump</span>
                 <span className="ml-auto flex gap-3 text-xs text-muted">
-                  <span className="flex items-center gap-1"><i className="inline-block size-2 rounded-full bg-accent" />Spoken</span>
+                  <span className="flex items-center gap-1"><i className="inline-block size-2 rounded-full bg-accent-light" />Spoken</span>
                   <span className="flex items-center gap-1"><i className="inline-block size-2 rounded-full bg-warn" />Typed</span>
                 </span>
               </div>
               <div className="relative h-8 rounded-lg bg-background" role="list" aria-label="Moments on the timeline">
-                <div className="absolute inset-y-0 left-0 rounded-lg bg-accent/10" style={{ width: `${Math.min(100, (current / durationMs) * 100)}%` }} />
+                <div className="absolute inset-y-0 left-0 rounded-lg bg-accent-light/15" style={{ width: `${Math.min(100, (current / durationMs) * 100)}%` }} />
                 {utterances.map((u) => (
                   <button key={u.id} type="button" role="listitem" title={`${fmtTime(u.start_ms)} ${kind(u)}: ${u.text}`} aria-label={`${fmtTime(u.start_ms)} ${kind(u)}: ${u.text}`}
                     onClick={() => seek(Math.max(0, u.start_ms - 2000))} disabled={!hasRecording}
-                    className={`absolute top-1.5 h-5 w-2 -translate-x-1/2 rounded-full transition-transform hover:scale-125 ${u.source === "typed" ? "bg-warn" : "bg-accent"} ${active?.id === u.id ? "ring-2 ring-foreground/40" : ""}`}
+                    className={`absolute top-1.5 h-5 w-2 -translate-x-1/2 rounded-full transition-transform hover:scale-125 ${u.source === "typed" ? "bg-warn" : "bg-accent-light"} ${active?.id === u.id ? "ring-2 ring-foreground/40" : ""}`}
                     style={{ left: `${Math.min(99.5, (u.start_ms / durationMs) * 100)}%` }} />
                 ))}
               </div>
@@ -70,7 +70,7 @@ export function ReviewPlayer({ sessionId, projectId, hasRecording, audioOnly, du
                 <div className="space-y-2 pl-6">
                   {q.type === "rating" && (
                     <p className="flex items-center gap-1" aria-label={`Rating ${q.answer?.rating ?? "none"} of 5`}>
-                      {[1, 2, 3, 4, 5].map((n) => <span key={n} className={`h-2 w-6 rounded-full ${q.answer?.rating && n <= q.answer.rating ? "bg-accent" : "bg-line"}`} />)}
+                      {[1, 2, 3, 4, 5].map((n) => <span key={n} className={`h-2 w-6 rounded-full ${q.answer?.rating && n <= q.answer.rating ? "bg-accent-light" : "bg-line"}`} />)}
                       <span className="num ml-2 text-sm font-medium">{q.answer?.rating ?? "–"} / 5</span>
                     </p>
                   )}
@@ -95,9 +95,9 @@ export function ReviewPlayer({ sessionId, projectId, hasRecording, audioOnly, du
         </Panel>
       </div>
 
-      <aside className="space-y-6">
+      <aside className="space-y-6 lg:sticky lg:top-20 lg:self-start">
         <Panel title="Timeline" tag="everything said or typed" action={<span className="pill num bg-background text-muted">{utterances.length}</span>} flush divided>
-          <ol className="max-h-[60vh] divide-y divide-line overflow-y-auto">
+          <ol className="max-h-[55vh] divide-y divide-line overflow-y-auto">
             {utterances.length === 0 && <li className="p-5 text-sm text-muted">Nothing said or typed in this session</li>}
             {utterances.map((u) => (
               <li key={u.id}>

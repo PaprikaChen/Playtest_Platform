@@ -3,7 +3,7 @@ export function Logo() {
   // A play triangle sitting on a timeline: playtests are moments on a timeline.
   return (
     <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden>
-      <rect width="22" height="22" rx="6" fill="var(--accent)" />
+      <rect width="22" height="22" rx="6" fill="var(--accent-light)" />
       <path d="M8 6.5v7l6-3.5z" fill="#fff" />
       <rect x="5" y="16" width="12" height="1.6" rx=".8" fill="#fff" opacity=".7" />
     </svg>

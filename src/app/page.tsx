@@ -27,7 +27,7 @@ export default function Dashboard() {
             <Link key={p.id} href={`/projects/${p.id}`} className="card group flex items-center gap-4 transition-colors hover:border-accent/40">
               <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-accent-soft font-display text-lg font-semibold text-accent-strong">{p.name.slice(0, 1).toUpperCase()}</span>
               <span className="min-w-0 flex-1">
-                <span className="block font-display text-lg font-semibold tracking-tight">{p.name}</span>
+                <span className="block font-display text-lg font-semibold tracking-tight [overflow-wrap:anywhere]">{p.name}</span>
                 {p.description && <span className="block truncate text-sm text-muted">{p.description}</span>}
               </span>
               <dl className="hidden gap-6 text-right sm:flex">

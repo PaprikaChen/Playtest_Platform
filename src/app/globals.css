@@ -2,7 +2,8 @@
 
 /*
  * Visual system (UI pass 2): cool, clear, blue.
- * Ink #121826 · Slate #5B6475 · Mist #F3F5F9 · Paper #FFFFFF · Line #E1E5EC · Signal Blue #1F6FEB
+ * Ink #121826 · Slate #5B6475 · Mist #F3F5F9 · Paper #FFFFFF · Line #E1E5EC
+ * Blue: #3575D4 buttons/links (AA 4.5:1 with white), #4A87DF decorative fills, #2C66BD text on tints
  * Red is reserved for recording and destructive actions.
  */
 :root {
@@ -11,9 +12,10 @@
   --foreground: #121826;
   --muted: #5b6475;
   --line: #e1e5ec;
-  --accent: #1f6feb;
-  --accent-strong: #1859c4;
-  --accent-soft: #e8f1fe;
+  --accent: #3575d4;
+  --accent-strong: #2c66bd;
+  --accent-soft: #ebf2fc;
+  --accent-light: #4a87df;
   --rec: #e5484d;
   --stage: #0e1420;
   --warn: #9a5b00;
@@ -33,6 +35,7 @@
   --color-accent: var(--accent);
   --color-accent-strong: var(--accent-strong);
   --color-accent-soft: var(--accent-soft);
+  --color-accent-light: var(--accent-light);
   --color-rec: var(--rec);
   --color-stage: var(--stage);
   --color-warn: var(--warn);

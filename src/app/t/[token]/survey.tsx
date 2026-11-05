@@ -100,8 +100,8 @@ export function Survey({ token, sessionId, projectName, audioOnly, onSubmitted }
   return (
     <main className="mx-auto max-w-3xl px-4 pt-10 pb-32">
       <header className="mb-6">
-        <p className="tag">Game: <span className="font-medium text-foreground">{projectName}</span></p>
-        <h1 className="mt-1 font-display text-4xl font-semibold tracking-tight">{title || "Questionnaire"}</h1>
+        <p className="tag [overflow-wrap:anywhere]">Game: <span className="font-medium text-foreground">{projectName}</span></p>
+        <h1 className="mt-1 font-display text-4xl font-semibold tracking-tight [overflow-wrap:anywhere]">{title || "Questionnaire"}</h1>
         <div className={`mt-4 flex gap-2.5 rounded-xl p-3.5 text-sm ${pending ? "bg-warn-soft text-warn" : status?.prompts === "failed" ? "bg-bad-soft text-bad" : "bg-accent-soft text-accent-strong"}`}>
           <span aria-hidden className="mt-0.5">{pending ? "⏳" : status?.prompts === "failed" ? "⚠️" : "💡"}</span>
           <p>

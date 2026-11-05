@@ -116,3 +116,33 @@ describe("abandoned sessions", () => {
     expect(repo.getSession(fresh.id)!.status).toBe("recording");
   });
 });
+
+describe("questionnaire versions and limits", () => {
+  it("existing invites keep the questions they were created with", async () => {
+    const p = repo.createProject("Versions");
+    const b = await repo.createBuild(p.id, "", "a.zip", await sampleZip());
+    const v1 = repo.saveQuestionnaire(p.id, "", [{ type: "text", prompt: "Old question?" }]);
+    const inv = repo.createInvite(p.id, b.id, v1.id);
+    repo.saveQuestionnaire(p.id, "", [{ type: "text", prompt: "New question?" }]);
+    const s = repo.createSession(inv.token, "x", "comments-only", null);
+    expect(repo.getQuestionnaire(s.questionnaire_id)!.questions[0].prompt).toBe("Old question?");
+    expect(repo.latestQuestionnaire(p.id)!.version).toBe(2);
+  });
+
+  it("rejects more than 30 questions and drops blank ones", () => {
+    const p = repo.createProject("Limits");
+    expect(() => repo.saveQuestionnaire(p.id, "", Array.from({ length: 31 }, (_, i) => ({ type: "text" as const, prompt: `Q${i}` })))).toThrow(/30/);
+    expect(() => repo.saveQuestionnaire(p.id, "", [{ type: "text", prompt: "   " }])).toThrow(/at least one/);
+    expect(repo.saveQuestionnaire(p.id, "", [{ type: "text", prompt: "a" }, { type: "text", prompt: "" }]).questions).toHaveLength(1);
+  });
+
+  it("clamps ratings and ignores answers to unknown questions", async () => {
+    const p = repo.createProject("Ratings");
+    const b = await repo.createBuild(p.id, "", "a.zip", await sampleZip());
+    const q = repo.saveQuestionnaire(p.id, "", [{ type: "rating", prompt: "Controls?" }]);
+    const s = repo.createSession(repo.createInvite(p.id, b.id, q.id).token, "x", "comments-only", null);
+    repo.saveAnswer(s.id, q.questions[0].id, "", 9, []);
+    expect(repo.listAnswers(s.id)[0].rating).toBe(5);
+    expect(() => repo.saveAnswer(s.id, "q_nope", "x", null, [])).toThrow(/Unknown question/);
+  });
+});

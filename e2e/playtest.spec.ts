@@ -20,8 +20,10 @@ test("creator setup → tester plays with screen + mic → recall questionnaire 
   await page.getByLabel("Build name").fill("v0.3 jump tuning");
   await page.locator('input[type="file"]').setInputFiles(ZIP);
   await expect(page.getByText(/Published “v0.3 jump tuning”/)).toBeVisible();
+  await page.getByRole("link", { name: /^Questions/ }).click();
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page.getByText(/Saved as version 1/)).toBeVisible();
+  await page.getByRole("link", { name: /^Share & builds/ }).click();
   await page.getByRole("button", { name: "Create link" }).click();
   const link = page.getByRole("link", { name: "Open" }).first();
   await expect(link).toBeVisible();
@@ -73,6 +75,11 @@ test("creator setup → tester plays with screen + mic → recall questionnaire 
   // Let the synthesized speech (≈26 s) play through the fake mic.
   await tester.waitForTimeout(Math.max(0, 24_000 - (Date.now() - t0)));
   await shot(tester, "e2e-3-tester-playing");
+  // Notes panel can be hidden to give the game the full width, and brought back.
+  await tester.getByRole("button", { name: "Hide notes" }).click();
+  await expect(tester.locator("#notes-panel")).toBeHidden();
+  await tester.getByRole("button", { name: "Show notes" }).click();
+  await expect(tester.locator("#notes-panel")).toBeVisible();
   log.sidePanel = await tester.locator("aside").innerText();
 
   await tester.getByRole("button", { name: "Finish and answer questions" }).click();

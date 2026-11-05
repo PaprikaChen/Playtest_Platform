@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import zlib from "node:zlib";
 import { buildDir, safeJoin } from "@/lib/paths";
 import { inviteByToken } from "@/lib/repo";
 
@@ -34,12 +35,19 @@ export async function GET(_req: Request, { params }: Ctx) {
     "access-control-allow-origin": "*",
     "x-content-type-options": "nosniff",
   };
-  // Unity/Godot pre-compressed builds: foo.wasm.br -> wasm with br encoding.
+  // Unity/Godot pre-compressed builds (foo.wasm.br, foo.data.gz). Next.js strips a
+  // Content-Encoding header set by a route handler, so the browser would receive
+  // still-compressed bytes. Decompress here and serve plain bytes instead.
   let ext = path.extname(file).toLowerCase();
+  let body: Buffer = fs.readFileSync(file);
   if (ext === ".br" || ext === ".gz") {
-    headers["content-encoding"] = ext === ".br" ? "br" : "gzip";
+    try {
+      body = ext === ".br" ? zlib.brotliDecompressSync(body) : zlib.gunzipSync(body);
+    } catch {
+      return new Response("Corrupt compressed file in build.", { status: 422 });
+    }
     ext = path.extname(file.slice(0, -ext.length)).toLowerCase();
   }
   headers["content-type"] = TYPES[ext] ?? "application/octet-stream";
-  return new Response(fs.readFileSync(file), { headers });
+  return new Response(new Uint8Array(body), { headers });
 }

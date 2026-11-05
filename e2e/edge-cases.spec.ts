@@ -15,8 +15,10 @@ async function newGame(page: Page, name: string) {
 async function setUpInvite(page: Page) {
   await page.locator('input[type="file"]').setInputFiles(ZIP);
   await expect(page.getByText(/Published “Build 1”/)).toBeVisible();
+  await page.getByRole("link", { name: /^Questions/ }).click();
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page.getByText(/Saved as version 1/)).toBeVisible();
+  await page.getByRole("link", { name: /^Share & builds/ }).click();
   await page.getByRole("button", { name: "Create link" }).click();
   const open = page.getByRole("link", { name: "Open" }).first();
   await expect(open).toBeVisible();
@@ -61,12 +63,13 @@ test("comments-only session: typed note becomes a recall card without video; rev
   await expect(tester.getByText(/already submitted/)).toBeVisible();
 
   await page.reload();
+  await page.getByRole("link", { name: /^Feedback/ }).click();
   await page.getByRole("link", { name: "Review" }).first().click();
   await expect(page.getByText(/No recording/)).toBeVisible();
   page.once("dialog", (d) => d.accept());
   await page.getByRole("button", { name: "Delete session now" }).click();
   await page.waitForURL(/\/projects\/prj_/);
-  await expect(page.getByText(/No sessions yet/)).toBeVisible();
+  await expect(page.getByRole("link", { name: /^Feedback 0/ })).toBeVisible();
 });
 
 test("turned-off invite link blocks testers", async ({ page, context }) => {
@@ -91,12 +94,40 @@ test("game switcher lists games and switches between them", async ({ page }) => 
   await expect(page.getByRole("heading", { level: 1, name: "Switch A" })).toBeVisible();
 });
 
-test("phone width: no horizontal scrolling on main screens", async ({ page, context }) => {
-  await newGame(page, "Phone Check");
+test("game files: nested folder, Unicode names, pre-compressed .br", async ({ page }) => {
+  await newGame(page, "Asset Paths");
+  const zlib = await import("node:zlib");
+  const z = new JSZip();
+  z.file("MyGame/index.html", "<html><body>ok</body></html>");
+  z.file("MyGame/assets/角色 sprite.png", new Uint8Array([137, 80, 78, 71]));
+  z.file("MyGame/Build/game.wasm.br", zlib.brotliCompressSync(Buffer.from("WASMDATA")));
+  const buffer = Buffer.from(await z.generateAsync({ type: "uint8array" }));
+  await page.locator('input[type="file"]').setInputFiles({ name: "nested.zip", mimeType: "application/zip", buffer });
+  await expect(page.getByText(/Published “Build 1” \(3 files\)/)).toBeVisible();
+  await page.getByRole("link", { name: /^Questions/ }).click();
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.getByText(/Saved as version 1/)).toBeVisible();
+  await page.getByRole("link", { name: /^Share & builds/ }).click();
+  await page.getByRole("button", { name: "Create link" }).click();
+  const invite = (await page.getByRole("link", { name: "Open" }).first().getAttribute("href"))!;
+  const g = invite.replace("/t/", "/g/");
+  expect((await page.request.get(`${g}/index.html`)).status()).toBe(200);
+  const png = await page.request.get(`${g}/assets/${encodeURIComponent("角色 sprite.png")}`);
+  expect(png.status()).toBe(200);
+  expect(png.headers()["content-type"]).toBe("image/png");
+  const wasm = await page.request.get(`${g}/Build/game.wasm.br`);
+  expect(wasm.status()).toBe(200);
+  expect(wasm.headers()["content-type"]).toBe("application/wasm");
+  expect(await wasm.text()).toBe("WASMDATA"); // served with Content-Encoding: br, decoded by the client
+  expect((await page.request.get(`${g}/${encodeURIComponent("../../playtest.sqlite")}`)).status()).toBe(404);
+});
+
+test("phone width: no horizontal scrolling on main screens, even with very long names", async ({ page, context }) => {
+  await newGame(page, "A really really long game name that keeps going SuperLongWordWithoutSpacesToBreakLayouts");
   const invite = await setUpInvite(page);
   await page.setViewportSize({ width: 375, height: 812 });
   const overflow = (p: Page) => p.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-  for (const url of ["/", page.url(), invite]) {
+  for (const url of ["/", page.url(), page.url() + "?tab=questions", page.url() + "?tab=share", invite]) {
     await page.goto(url);
     await page.waitForLoadState("networkidle");
     expect(await overflow(page), `horizontal overflow on ${url}`).toBeLessThanOrEqual(1);

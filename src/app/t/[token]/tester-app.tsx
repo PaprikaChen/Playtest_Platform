@@ -28,6 +28,7 @@ export function TesterApp(props: { token: string; projectName: string; projectDe
   const [comments, setComments] = useState<Comment[]>([]);
   const [draft, setDraft] = useState("");
   const [finishMsg, setFinishMsg] = useState("");
+  const [panelOpen, setPanelOpen] = useState(true);
   const [canCaption, setCanCaption] = useState(false);
   useEffect(() => setCanCaption(speechRecognitionSupported()), []);
 
@@ -180,7 +181,7 @@ export function TesterApp(props: { token: string; projectName: string; projectDe
           <div className="card p-6 sm:p-7 space-y-6">
             <header>
               <p className="tag">You&apos;re invited to playtest a game</p>
-              <h1 className="mt-1 font-display text-4xl font-semibold tracking-tight">{props.projectName}</h1>
+              <h1 className="mt-1 font-display text-4xl font-semibold tracking-tight [overflow-wrap:anywhere]">{props.projectName}</h1>
               <div className="mt-3 flex flex-wrap gap-2 text-xs">
                 <span className="pill bg-accent-soft text-accent-strong">Build: {props.buildLabel}</span>
                 {props.projectDescription && <span className="pill bg-background text-muted">Testing: {props.projectDescription}</span>}
@@ -220,9 +221,17 @@ export function TesterApp(props: { token: string; projectName: string; projectDe
     <div className="h-screen flex flex-col lg:flex-row bg-stage">
       <section className="flex-1 min-h-0 flex flex-col">
         <div className="flex h-10 shrink-0 items-center gap-3 px-4 text-xs text-white/60">
-          <span>Game: <span className="font-medium text-white">{props.projectName}</span></span>
-          <span>Build: <span className="text-white/80">{props.buildLabel}</span></span>
+          <span className="min-w-0 truncate">Game: <span className="font-medium text-white">{props.projectName}</span></span>
+          <span className="hidden min-w-0 truncate md:inline">Build: <span className="text-white/80">{props.buildLabel}</span></span>
           <span className="ml-auto hidden sm:inline">Click the game to control it</span>
+          {!panelOpen && (
+            <span className="flex items-center gap-2 rounded-full bg-white/10 px-2.5 py-1 text-white">
+              <span className={`size-2 rounded-full ${recording ? "bg-rec animate-pulse" : "bg-white/40"}`} />
+              <span className="num">{fmtTime(elapsed)}</span>
+            </span>
+          )}
+          <button type="button" onClick={() => setPanelOpen(!panelOpen)} aria-expanded={panelOpen} aria-controls="notes-panel"
+            className="rounded-md px-2 py-1 font-medium text-white/80 hover:bg-white/10 hover:text-white">{panelOpen ? "Hide notes" : "Show notes"}</button>
         </div>
         <iframe
           title="Game"
@@ -233,7 +242,7 @@ export function TesterApp(props: { token: string; projectName: string; projectDe
           className="flex-1 w-full border-0"
         />
       </section>
-      <aside className="w-full lg:w-[360px] shrink-0 bg-surface flex flex-col max-h-[50vh] lg:max-h-none lg:rounded-l-2xl overflow-hidden">
+      <aside id="notes-panel" aria-hidden={!panelOpen} className={`w-full lg:w-[360px] shrink-0 bg-surface flex-col max-h-[50vh] lg:max-h-none lg:rounded-l-2xl overflow-hidden ${panelOpen ? "flex" : "hidden"}`}>
         <div className="px-4 pt-4 pb-3 border-b border-line space-y-2.5" aria-label="Recording status">
           <div className="flex items-center gap-2.5">
             <span className={`size-2.5 rounded-full ${recording ? "bg-rec animate-pulse" : "bg-line"}`} />
