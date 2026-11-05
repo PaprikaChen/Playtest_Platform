@@ -5,7 +5,7 @@ issue: none
 agent: claude-code
 model: claude-fable-5
 type: docs
-commits: [25b6a7e]
+commits: [0655220]
 outcome: accepted
 human_corrections: 0
 caught_by: []
