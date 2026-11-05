@@ -12,7 +12,7 @@ export const POST = route(async (req: Request, { params }: Ctx) => {
 
   const body = await readJson(req);
   const chunkCount = Math.max(0, Number(body.chunkCount) || 0);
-  const { bytes, missing } = assembleRecording(id, chunkCount, Math.round(Number(body.durationMs) || 0));
+  const { bytes, missing } = await assembleRecording(id, chunkCount, Math.round(Number(body.durationMs) || 0));
   updateSession(id, {
     status: "processing",
     ended_at: Date.now(),

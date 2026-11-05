@@ -1,9 +1,38 @@
+import crypto from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
 import { Decoder, Reader, tools } from "ts-ebml";
+import { execFileP, ffmpegPath } from "./media";
 
 /**
- * MediaRecorder writes WebM without a duration or cue index, which makes
- * seeking (and therefore "replay this moment") unreliable. Rewrite the
- * header with duration + cues so the browser can seek to any timestamp.
+ * Remux a MediaRecorder WebM losslessly (ffmpeg -c copy): clusters are re-cut
+ * to start at video keyframes and Cues/Duration are rebuilt, so <video> can
+ * seek anywhere. MediaRecorder's own clusters usually start with audio or
+ * delta frames; cues pointing at those make Chrome fail the seek with
+ * PIPELINE_ERROR_DECODE, which showed as "Recording unavailable" on replay.
+ */
+export async function remuxSeekable(input: Buffer, workDir: string): Promise<Buffer> {
+  const tag = crypto.randomBytes(4).toString("hex");
+  const inPath = path.join(workDir, `remux-${tag}.in.webm`);
+  const outPath = path.join(workDir, `remux-${tag}.out.webm`);
+  fs.mkdirSync(workDir, { recursive: true });
+  fs.writeFileSync(inPath, input);
+  try {
+    // Output must be a file: the webm muxer needs a seekable target to write cues.
+    await execFileP(await ffmpegPath(), ["-v", "error", "-y", "-i", inPath, "-c", "copy", outPath]);
+    const out = fs.readFileSync(outPath);
+    if (out.byteLength < 4 || out.readUInt32BE(0) !== 0x1a45dfa3) throw new Error("ffmpeg remux produced an invalid file.");
+    return out;
+  } finally {
+    fs.rmSync(inPath, { force: true });
+    fs.rmSync(outPath, { force: true });
+  }
+}
+
+/**
+ * Fallback when ffmpeg fails: rewrite the header with duration + cues so the
+ * file is at least partially seekable. Cues keep MediaRecorder's cluster
+ * boundaries, so seeks can still fail past the first keyframes (see above).
  */
 export function makeSeekable(input: Buffer, fallbackDurationMs = 0): Buffer {
   const decoder = new Decoder();

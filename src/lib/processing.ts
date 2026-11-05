@@ -5,11 +5,11 @@ import { chunkPath, recordingPath, sessionDir } from "./paths";
 import { addUtterances, getQuestionnaire, getSession, listUtterances, newId, updateSession } from "./repo";
 import { transcribeRecording } from "./ai/transcribe";
 import { generateRecall } from "./ai/recall";
-import { makeSeekable } from "./webm";
+import { makeSeekable, remuxSeekable } from "./webm";
 import { REPLAY_AFTER_MS, REPLAY_BEFORE_MS, STALE_RECORDING_MS, type SessionRow } from "./types";
 
 /** Concatenate uploaded chunks in sequence order into one recording file. */
-export function assembleRecording(sessionId: string, expectedChunks: number, durationMs = 0): { bytes: number; missing: number[] } {
+export async function assembleRecording(sessionId: string, expectedChunks: number, durationMs = 0): Promise<{ bytes: number; missing: number[] }> {
   const seqs = all<{ seq: number }>("SELECT seq FROM chunks WHERE session_id=? ORDER BY seq", sessionId).map((r) => r.seq);
   const have = new Set(seqs);
   const missing: number[] = [];
@@ -21,9 +21,14 @@ export function assembleRecording(sessionId: string, expectedChunks: number, dur
   const parts = seqs.map((s) => fs.readFileSync(chunkPath(sessionId, s)));
   let buf: Buffer = Buffer.concat(parts);
   try {
-    buf = makeSeekable(buf, durationMs);
+    buf = await remuxSeekable(buf, sessionDir(sessionId));
   } catch (e) {
-    console.warn(`[processing] could not add webm cues for ${sessionId}:`, e);
+    console.warn(`[processing] ffmpeg remux failed for ${sessionId}, falling back to header rewrite:`, e);
+    try {
+      buf = makeSeekable(buf, durationMs);
+    } catch (e2) {
+      console.warn(`[processing] could not add webm cues for ${sessionId}:`, e2);
+    }
   }
   fs.writeFileSync(out, buf);
   fs.rmSync(path.join(sessionDir(sessionId), "chunks"), { recursive: true, force: true });
@@ -43,7 +48,7 @@ function settledStatus(sessionId: string): SessionRow["status"] {
  * comment for STALE_RECORDING_MS. Whatever was recorded is assembled and
  * processed so the developer still gets it. Called lazily on reads.
  */
-export function finalizeStaleSessions(now = Date.now()) {
+export async function finalizeStaleSessions(now = Date.now()) {
   const cutoff = now - STALE_RECORDING_MS;
   const stale = all<{ id: string }>(
     `SELECT s.id FROM sessions s WHERE s.status='recording'
@@ -52,7 +57,7 @@ export function finalizeStaleSessions(now = Date.now()) {
   );
   for (const { id } of stale) {
     const seqs = all<{ seq: number }>("SELECT seq FROM chunks WHERE session_id=? ORDER BY seq", id);
-    const { bytes } = assembleRecording(id, seqs.length ? seqs[seqs.length - 1].seq + 1 : 0);
+    const { bytes } = await assembleRecording(id, seqs.length ? seqs[seqs.length - 1].seq + 1 : 0);
     updateSession(id, {
       status: "abandoned",
       ended_at: now,
