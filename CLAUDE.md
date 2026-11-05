@@ -33,8 +33,9 @@ Node ≥ 22.5 (built-in `node:sqlite`). Data goes in `./data` (git-ignored). Sam
 1. **Testers' words are never rewritten.** Quotes shown anywhere come from the `utterances` table, never from model output.
    LLM output may only reference `question_id` / `utterance_id`; `sanitizeMatches` drops anything else.
 2. **Hints are neutral; summaries only restate the tester.** Hints carry no sentiment the tester didn't express and no
-   suggested answers. An AI summary (decision 0005) may restate the tester's own meaning and voiced suggestions, nothing
-   beyond them; it is always labeled "AI summary", and inserting it is an explicit tester action.
+   suggested answers. An AI summary (decision 0005) is a first-person rewording of the tester's own meaning and voiced
+   suggestions, nothing beyond them; it is labeled ("AI summary" for developers, "One way to put it" for testers), and
+   inserting it is an explicit tester action.
 3. **The questionnaire never blocks on AI.** Pending or failed transcription/prompts must leave submission working.
 4. **Tester endpoints require the invite token** (`x-invite-token` header or `?t=` for media), and sessions are bound to their invite.
 5. **Build files are static only.** Never execute uploaded code server-side. Games run in a sandboxed iframe **without** `allow-same-origin`.

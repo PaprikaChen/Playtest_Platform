@@ -7,7 +7,7 @@ model: claude-fable-5
 type: feature
 commits: [8def474, 8be902f]
 outcome: accepted
-human_corrections: 0
+human_corrections: 1
 caught_by: [browser-test]
 ---
 ## Requirement
@@ -44,6 +44,11 @@ Human: "下一个版本我想不光是用ai去提取和理解片段，并且对�
   schema migration applied on server restart.
 
 ## Human correction / what we learned
+Paprika corrected the tester-facing framing after trying it: third-person "AI summary" ("测试者认为…") read like a
+verdict about the tester; she asked for first person as "a possible way to put it". The prompt now asks for the
+tester's first person, the card label is "One way to put it" (AI provenance in the banner and tooltip), the insert
+button is "Use this wording", and decision 0005 records the reasoning. The developer review keeps the "AI summary"
+label — first-person content reads there as the tester's own voice.
 Surface placement was a product decision, not a technical one — the agent proposed developer-only as the safe default
 and the human chose both, which forced the invariant refinement to be written down (decision 0005) instead of silently
 drifting. Summary quality/steering now needs explicit grading in the #16 eval and watching in the #26 pilot.

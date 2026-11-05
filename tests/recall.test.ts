@@ -80,9 +80,10 @@ describe("buildRecallPrompt", () => {
     expect(p).toContain('"matches"');
   });
 
-  it("asks for a grounded summary in the tester's language", () => {
+  it("asks for a grounded first-person summary in the tester's language", () => {
     const p = buildRecallPrompt(questions, utterances);
     expect(p).toContain('"summary"');
     expect(p.toLowerCase()).toContain("same language");
+    expect(p).toContain("FIRST PERSON");
   });
 });

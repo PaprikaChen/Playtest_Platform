@@ -119,7 +119,7 @@ export function Survey({ token, sessionId, projectName, audioOnly, onSubmitted }
           <span aria-hidden className="mt-0.5">{pending ? "⏳" : status?.prompts === "failed" ? "⚠️" : "💡"}</span>
           <p>
             {pending && "Finding the moments you commented on… You can start answering (and even submit) now; reminders will appear under each question when ready."}
-            {status?.prompts === "done" && <>Reminders are based only on what you said or typed; an AI summary restates your own comment and may be imperfect. They&apos;re suggestions: insert, edit or dismiss them. Nothing is filled in for you.{status.provider?.includes("placeholder") && <span className="opacity-70"> (Alpha: keyword matching stands in for the AI model.)</span>}</>}
+            {status?.prompts === "done" && <>Reminders are based only on what you said or typed; &ldquo;One way to put it&rdquo; is an AI rewording of your own comment and may be imperfect. They&apos;re suggestions: insert, edit or dismiss them. Nothing is filled in for you.{status.provider?.includes("placeholder") && <span className="opacity-70"> (Alpha: keyword matching stands in for the AI model.)</span>}</>}
             {status?.prompts === "failed" && "Reminders couldn't be generated this time. Your answers still work as normal."}
           </p>
         </div>
@@ -172,14 +172,14 @@ export function Survey({ token, sessionId, projectName, audioOnly, onSubmitted }
                           <p className="mt-1 text-xs text-muted">{p.hint}</p>
                           {p.summary && (
                             <p className="mt-1.5 rounded-lg bg-background px-2 py-1.5 text-xs">
-                              <span className="pill mr-1.5 bg-accent-soft text-accent-strong">AI summary</span>
+                              <span className="pill mr-1.5 bg-accent-soft text-accent-strong" title="Written by AI from your own comment">One way to put it</span>
                               {p.summary}
                             </p>
                           )}
                           <div className="mt-auto flex flex-wrap gap-1.5 pt-2">
                             <button type="button" className="btn-ghost py-1 text-xs" disabled={p.state === "inserted"} onClick={() => insert(p, quoteLine(p))}>{p.state === "inserted" ? "Added ✓" : p.summary ? "Add quote" : "Add to my answer"}</button>
                             {p.summary && (
-                              <button type="button" className="btn-ghost py-1 text-xs" disabled={p.state === "inserted"} onClick={() => insert(p, p.summary)} title="Inserts the AI summary into your answer; edit it to match what you mean.">Add summary</button>
+                              <button type="button" className="btn-ghost py-1 text-xs" disabled={p.state === "inserted"} onClick={() => insert(p, p.summary)} title="Inserts this wording into your answer; edit it to match what you mean.">Use this wording</button>
                             )}
                             <button type="button" className="btn py-1 text-xs text-muted hover:text-foreground" onClick={() => setPromptState(p, "dismissed")}>Dismiss</button>
                           </div>
