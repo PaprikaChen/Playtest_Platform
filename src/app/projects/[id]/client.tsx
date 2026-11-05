@@ -55,7 +55,7 @@ export function QuestionnaireEditor({ projectId, initial }: { projectId: string;
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
 
-  const update = (i: number, patch: Partial<Draft>) => setQs(qs.map((q, j) => (j === i ? { ...q, ...patch } : q)));
+  const update = (i: number, patch: Partial<Draft>) => { setMsg(""); setQs(qs.map((q, j) => (j === i ? { ...q, ...patch } : q))); };
 
   async function save() {
     setBusy(true);
@@ -68,29 +68,36 @@ export function QuestionnaireEditor({ projectId, initial }: { projectId: string;
     if (res.ok) router.refresh();
   }
 
+  const savedJson = JSON.stringify(initial ? { title: initial.title, qs: initial.questions.map(({ type, prompt }) => ({ type, prompt })) } : null);
+  const dirty = savedJson !== JSON.stringify({ title, qs: qs.map(({ type, prompt }) => ({ type, prompt })) });
+
   return (
     <div className="space-y-3">
       <input className="input font-medium" value={title} onChange={(e) => setTitle(e.target.value)} aria-label="Questionnaire title" />
-      <ul className="space-y-2">
+      <ol className="divide-y divide-line rounded-xl border border-line">
         {qs.map((q, i) => (
-          <li key={i} className="rounded-lg border border-line p-2.5 space-y-2">
-            <textarea className="input" rows={2} value={q.prompt} onChange={(e) => update(i, { prompt: e.target.value })} aria-label={`Question ${i + 1}`} />
-            <div className="flex items-center gap-2 text-xs">
-              <select className="input w-auto py-1" value={q.type} onChange={(e) => update(i, { type: e.target.value as Draft["type"] })}>
-                <option value="text">Open answer</option>
-                <option value="rating">1–5 rating + why</option>
-              </select>
-              <button type="button" className="ml-auto text-muted hover:text-bad" onClick={() => setQs(qs.filter((_, j) => j !== i))}>Remove</button>
+          <li key={i} className="group flex items-start gap-3 px-3 py-2.5">
+            <span className="mt-2 w-5 shrink-0 text-right text-xs font-semibold text-muted">{i + 1}</span>
+            <textarea
+              className="min-h-9 flex-1 resize-none rounded-md border border-transparent bg-transparent px-2 py-1.5 text-sm outline-none [field-sizing:content] hover:border-line focus:border-accent focus:bg-surface"
+              rows={1} value={q.prompt} placeholder="Ask about a moment, a feeling, a mechanic…"
+              onChange={(e) => update(i, { prompt: e.target.value })} aria-label={`Question ${i + 1}`}
+            />
+            <div className="mt-1 flex shrink-0 rounded-lg border border-line p-0.5 text-xs" role="radiogroup" aria-label={`Question ${i + 1} type`}>
+              {(["text", "rating"] as const).map((t) => (
+                <button key={t} type="button" role="radio" aria-checked={q.type === t} onClick={() => update(i, { type: t })}
+                  className={`rounded-md px-2 py-1 ${q.type === t ? "bg-accent text-white" : "text-muted hover:text-foreground"}`}>{t === "text" ? "Open" : "1–5"}</button>
+              ))}
             </div>
+            <button type="button" aria-label={`Remove question ${i + 1}`} className="mt-1.5 rounded px-1.5 text-muted opacity-40 hover:text-bad group-hover:opacity-100" onClick={() => setQs(qs.filter((_, j) => j !== i))}>✕</button>
           </li>
         ))}
-      </ul>
-      <div className="flex gap-2">
+      </ol>
+      <div className="flex items-center gap-3">
         <button type="button" className="btn-ghost" onClick={() => setQs([...qs, { type: "text", prompt: "" }])}>+ Question</button>
-        <button type="button" className="btn-primary ml-auto" disabled={busy} onClick={save}>{busy ? "Saving…" : initial ? "Save new version" : "Save"}</button>
+        <span className="ml-auto text-xs text-muted">{msg || (dirty ? (initial ? "Unsaved changes" : "Not saved yet") : "")}</span>
+        <button type="button" className="btn-primary" disabled={busy || (!dirty && Boolean(initial))} onClick={save}>{busy ? "Saving…" : initial ? "Save new version" : "Save"}</button>
       </div>
-      {msg && <p className="text-xs text-muted">{msg}</p>}
-      {initial && <p className="text-xs text-muted">Current: v{initial.version}. Saving creates a new version; existing links keep theirs.</p>}
     </div>
   );
 }

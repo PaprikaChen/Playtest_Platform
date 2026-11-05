@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { fmtTime } from "@/components/ui";
+import { MicMeter, useMicLevel } from "./mic-meter";
 import { ChunkUploader, pickMime, requestCapture, speechRecognitionSupported, startLiveCaptions, type CaptionStatus, type CaptureMode, type UploadStats } from "./recorder";
 
 type Stage = "intro" | "playing" | "finishing";
@@ -34,6 +35,8 @@ export function TesterApp(props: { token: string; projectName: string; projectDe
   const draftStart = useRef<number | null>(null);
   const recorder = useRef<MediaRecorder | null>(null);
   const stream = useRef<MediaStream | null>(null);
+  const [liveStream, setLiveStream] = useState<MediaStream | null>(null);
+  const { level, silentForMs } = useMicLevel(liveStream);
   const uploader = useRef<ChunkUploader | null>(null);
   const stopCaptions = useRef<() => Promise<void>>(async () => {});
   // Source of truth for comments (state is only for rendering), plus in-flight saves.
@@ -96,6 +99,7 @@ export function TesterApp(props: { token: string; projectName: string; projectDe
     setSessionId(sid);
     setMode(cap.mode);
     stream.current = cap.stream;
+    setLiveStream(cap.stream);
     t0.current = performance.now();
 
     if (cap.stream) {
@@ -160,42 +164,58 @@ export function TesterApp(props: { token: string; projectName: string; projectDe
   }
 
   if (stage === "intro") {
+    const Option = ({ checked, onChange, title, desc, icon }: { checked: boolean; onChange: (v: boolean) => void; title: string; desc: React.ReactNode; icon: string }) => (
+      <label className={`flex cursor-pointer gap-3 rounded-xl border p-3 transition-colors ${checked ? "border-accent/40 bg-accent-soft/50" : "border-line bg-surface"}`}>
+        <span className="text-lg leading-none" aria-hidden>{icon}</span>
+        <span className="flex-1">
+          <span className="block text-sm font-medium">{title}</span>
+          <span className="block text-xs text-muted mt-0.5">{desc}</span>
+        </span>
+        <input type="checkbox" className="mt-0.5 size-4 accent-[var(--accent)]" checked={checked} onChange={(e) => onChange(e.target.checked)} aria-label={title} />
+      </label>
+    );
     return (
-      <main className="min-h-screen grid place-items-center p-6">
-        <div className="card max-w-lg w-full space-y-5">
-          <div>
-            <p className="text-xs text-muted">You&apos;re invited to playtest</p>
-            <h1 className="text-2xl font-semibold tracking-tight">{props.projectName}</h1>
-            <p className="text-sm text-muted">{props.buildLabel}{props.projectDescription ? ` · ${props.projectDescription}` : ""}</p>
+      <main className="min-h-screen grid place-items-center p-4 sm:p-6">
+        <div className="w-full max-w-lg">
+          <div className="card p-6 sm:p-7 space-y-6">
+            <header>
+              <p className="text-xs font-medium uppercase tracking-wider text-accent">You&apos;re invited to playtest</p>
+              <h1 className="mt-1 text-3xl font-semibold tracking-tight">{props.projectName}</h1>
+              <p className="mt-1 text-sm text-muted">{props.buildLabel}{props.projectDescription ? ` · ${props.projectDescription}` : ""}</p>
+            </header>
+            <ol className="grid grid-cols-2 gap-2 text-sm">
+              <li className="rounded-xl bg-background p-3"><span className="text-xs font-semibold text-muted">1 · Play</span><p className="mt-1">Think out loud while you play, or type quick notes.</p></li>
+              <li className="rounded-xl bg-background p-3"><span className="text-xs font-semibold text-muted">2 · Answer</span><p className="mt-1">{props.questionCount} short questions, with replays of what you said.</p></li>
+            </ol>
+            <fieldset className="space-y-2">
+              <legend className="mb-2 text-sm font-medium">What gets recorded</legend>
+              <Option icon="🖥" checked={wantScreen} onChange={setWantScreen} title="Screen" desc={<>When Chrome asks, choose <b>this tab</b>.</>} />
+              <Option icon="🎙" checked={wantMic} onChange={setWantMic} title="Microphone" desc="Transcribed after the session so you can be reminded what you said." />
+              {wantMic && canCaption && (
+                <Option icon="💬" checked={captions} onChange={setCaptions} title="Live captions (optional)" desc="Shows captions while you play. Sends audio to your browser's speech service." />
+              )}
+              <p className="pt-1 text-xs text-muted">Only this game&apos;s developer can see your session. Everything is deleted automatically after 7 days, and nothing is filled in for you.</p>
+            </fieldset>
+            <div className="space-y-3">
+              <div>
+                <label className="label" htmlFor="tname">Your name or nickname</label>
+                <input id="tname" className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Sam" />
+              </div>
+              <label className="flex items-start gap-2.5 text-sm"><input type="checkbox" className="mt-0.5 size-4 accent-[var(--accent)]" checked={consent} onChange={(e) => setConsent(e.target.checked)} /> I agree to the recording described above.</label>
+              {error && <p className="text-sm text-bad">{error}</p>}
+              <button className="btn-primary w-full py-3 text-[15px]" disabled={!consent || starting} onClick={start}>{starting ? "Waiting for screen & mic permission…" : "Start playtest"}</button>
+            </div>
           </div>
-          <ol className="text-sm space-y-1.5 list-decimal list-inside">
-            <li>Play in your browser. Think out loud, or type comments whenever something stands out.</li>
-            <li>When you&apos;re done, answer {props.questionCount} short questions. We&apos;ll remind you of what you said, and you can replay those moments.</li>
-          </ol>
-          <div className="rounded-lg bg-background p-3 space-y-2 text-sm">
-            <p className="font-medium">What gets recorded</p>
-            <label className="flex gap-2"><input type="checkbox" checked={wantScreen} onChange={(e) => setWantScreen(e.target.checked)} /> Screen (pick <b>this tab</b> when asked)</label>
-            <label className="flex gap-2"><input type="checkbox" checked={wantMic} onChange={(e) => setWantMic(e.target.checked)} /> Microphone</label>
-            {wantMic && canCaption && (
-              <label className="flex gap-2 text-muted"><input type="checkbox" checked={captions} onChange={(e) => setCaptions(e.target.checked)} /> Also show live captions while I play (optional; sends audio to the browser&apos;s speech service)</label>
-            )}
-            <p className="text-xs text-muted">Only the developer of this game can see your session. Recordings, transcript and answers are deleted automatically after 7 days. Nothing is filled in for you.</p>
-          </div>
-          <div>
-            <label className="label" htmlFor="tname">Your name or nickname</label>
-            <input id="tname" className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Sam" />
-          </div>
-          <label className="flex gap-2 text-sm"><input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} /> I agree to the recording described above.</label>
-          {error && <p className="text-sm text-bad">{error}</p>}
-          <button className="btn-primary w-full py-2.5" disabled={!consent || starting} onClick={start}>{starting ? "Waiting for screen & mic permission…" : "Start playtest"}</button>
         </div>
       </main>
     );
   }
 
+  const hasMic = mode === "screen+mic" || mode === "mic";
+  const quietTooLong = hasMic && recording && silentForMs > 90_000;
   return (
-    <div className="h-screen flex flex-col lg:flex-row">
-      <section className="flex-1 min-h-0 bg-[#0f1220] flex flex-col">
+    <div className="h-screen flex flex-col lg:flex-row bg-stage">
+      <section className="flex-1 min-h-0 flex flex-col">
         <iframe
           title="Game"
           src={props.gameUrl}
@@ -205,29 +225,35 @@ export function TesterApp(props: { token: string; projectName: string; projectDe
           className="flex-1 w-full border-0"
         />
       </section>
-      <aside className="w-full lg:w-[340px] shrink-0 border-l border-line bg-surface flex flex-col max-h-[50vh] lg:max-h-none">
-        <div className="p-4 border-b border-line space-y-2">
-          <div className="flex items-center gap-2 text-sm">
-            <span className={`size-2.5 rounded-full ${recording ? "bg-bad animate-pulse" : "bg-muted"}`} />
-            <span className="font-medium">{recording ? "Recording" : mode === "comments-only" ? "Comments only" : "Not recording"}</span>
-            <span className="ml-auto font-mono text-muted">{fmtTime(elapsed)}</span>
+      <aside className="w-full lg:w-[360px] shrink-0 bg-surface flex flex-col max-h-[50vh] lg:max-h-none lg:rounded-l-2xl overflow-hidden">
+        <div className="px-4 pt-4 pb-3 border-b border-line space-y-2.5">
+          <div className="flex items-center gap-2.5">
+            <span className={`size-2.5 rounded-full ${recording ? "bg-rec animate-pulse" : "bg-line"}`} />
+            <span className="text-sm font-semibold">{recording ? "Recording" : mode === "comments-only" ? "Comments only" : "Not recording"}</span>
+            <span className="font-mono text-sm text-muted">{fmtTime(elapsed)}</span>
+            <span className="ml-auto flex items-center gap-2 text-xs text-muted">
+              {hasMic && <MicMeter level={level} />}
+              <span title={`Uploaded ${upload.sent} part${upload.sent === 1 ? "" : "s"}`} className={upload.retrying ? "text-warn" : upload.pending > 1 ? "text-muted" : "text-ok"}>
+                {upload.retrying ? "● retrying" : upload.pending > 1 ? `● ${upload.pending} waiting` : "● saved"}
+              </span>
+            </span>
           </div>
           <p className="text-xs text-muted">
-            {mode === "comments-only" ? "No screen or mic capture." : `Mode: ${mode} · uploaded ${upload.sent} part${upload.sent === 1 ? "" : "s"}`}
-            {upload.pending > 0 && ` · ${upload.pending} waiting`}
-            {upload.retrying && " · connection problem, retrying…"}
+            {mode === "comments-only" ? "No screen or mic capture. Type your thoughts below." : mode === "screen" ? "Screen recorded. Type your thoughts below." : hasMic && level > 0.35 ? "🎙 Hearing you. Keep thinking out loud." : "🎙 Think out loud: say what you notice, expect or find confusing."}
           </p>
-          {captionStatus && (
-            <p className={`text-xs ${captionStatus.s === "unavailable" ? "text-warn" : "text-muted"}`}>
-              {captionStatus.s === "hearing" ? "🎙 Hearing you…" : captionStatus.s === "listening" ? "🎙 Live captions on: speak any time" : `🎙 Live captions unavailable (${captionStatus.detail}). Your voice is still recorded.`}
-            </p>
-          )}
-          {warnings.map((w, i) => <p key={i} className="text-xs rounded bg-warn-soft text-warn p-2">{w}</p>)}
+          {quietTooLong && <p className="text-xs rounded-lg bg-accent-soft text-[#3d37b8] p-2">It&apos;s been quiet for a bit. What are you thinking right now?</p>}
+          {captionStatus?.s === "unavailable" && <p className="text-xs text-warn">Live captions unavailable ({captionStatus.detail}). Your voice is still recorded.</p>}
+          {warnings.map((w, i) => <p key={i} className="text-xs rounded-lg bg-warn-soft text-warn p-2">{w}</p>)}
         </div>
         <div className="flex-1 overflow-y-auto p-4 space-y-2">
-          {comments.length === 0 && <p className="text-sm text-muted">Say what you&apos;re thinking, or type a note below. Each note is pinned to this moment in the recording.</p>}
+          {comments.length === 0 && (
+            <div className="rounded-xl border border-dashed border-line p-4 text-sm text-muted">
+              <p className="font-medium text-foreground">Your notes appear here</p>
+              <p className="mt-1">{hasMic ? "Everything you say is transcribed after the session. " : ""}Typed notes are pinned to the moment you start typing.</p>
+            </div>
+          )}
           {comments.map((c) => (
-            <div key={c.id} className="text-sm rounded-lg bg-background p-2">
+            <div key={c.id} className="text-sm rounded-lg bg-background px-3 py-2">
               <div className="flex justify-between text-xs text-muted mb-0.5">
                 <span>{c.source === "typed" ? "✎ typed" : "🎙 said"}</span>
                 <span className="font-mono">{fmtTime(c.start_ms)}{c.state === "saving" ? " · saving" : c.state === "failed" ? " · will retry" : ""}</span>
@@ -236,14 +262,14 @@ export function TesterApp(props: { token: string; projectName: string; projectDe
             </div>
           ))}
         </div>
-        <div className="p-4 border-t border-line space-y-2">
+        <div className="p-4 border-t border-line space-y-2.5">
           <textarea
-            className="input" rows={2} value={draft} placeholder="Type a comment, press Enter"
+            className="input resize-none" rows={2} value={draft} placeholder="Type a comment, press Enter"
             onChange={(e) => { if (draftStart.current === null && e.target.value) draftStart.current = now(); if (!e.target.value) draftStart.current = null; setDraft(e.target.value); }}
             onKeyDown={(e) => { e.stopPropagation(); if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submitComment(); } }}
           />
-          <p className="text-[11px] text-muted">Timestamp is taken when you start typing. Click the game to return control to it.</p>
-          <button className="btn-primary w-full" disabled={stage === "finishing"} onClick={finish}>
+          <p className="text-[11px] text-muted"><span className="kbd">Enter</span> to save · click the game to keep playing</p>
+          <button className="btn-primary w-full py-2.5" disabled={stage === "finishing"} onClick={finish}>
             {stage === "finishing" ? finishMsg || "Finishing…" : "I'm done playing → questionnaire"}
           </button>
         </div>

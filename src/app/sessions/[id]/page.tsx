@@ -36,6 +36,7 @@ export default async function SessionReview({ params }: { params: Promise<{ id: 
         sessionId={id}
         hasRecording={Boolean(s.recording_bytes)}
         audioOnly={s.capture_mode === "mic"}
+        durationMs={s.duration_ms ?? 0}
         utterances={utterances}
         questions={q.questions.map((question) => {
           const a = answers.get(question.id);

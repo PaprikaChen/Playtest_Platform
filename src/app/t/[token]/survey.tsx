@@ -95,62 +95,95 @@ export function Survey({ token, sessionId, projectName, audioOnly, onSubmitted }
   }
 
   const pending = status && !["done", "failed"].includes(status.prompts);
+  const answeredCount = questions.filter((q) => { const a = ans(q.id); return a.text.trim() || a.rating; }).length;
   const src = `/api/sessions/${sessionId}/recording?t=${encodeURIComponent(token)}`;
   return (
-    <main className="mx-auto max-w-3xl px-4 py-8 space-y-5">
-      <div>
-        <p className="text-xs text-muted">{projectName}</p>
-        <h1 className="text-2xl font-semibold tracking-tight">{title || "Questionnaire"}</h1>
-      </div>
-      <div className={`rounded-lg p-3 text-sm ${pending ? "bg-warn-soft text-warn" : status?.prompts === "failed" ? "bg-bad-soft text-bad" : "bg-accent-soft text-accent"}`}>
-        {pending && "Finding the moments you commented on… You can start answering (and even submit) now; reminders will appear under each question when ready."}
-        {status?.prompts === "done" && `Reminders are based only on what you said or typed. They're suggestions: insert, edit or dismiss them. Nothing is filled in for you.${status.provider?.includes("placeholder") ? " (Alpha: keyword-matching placeholder instead of the AI model.)" : ""}`}
-        {status?.prompts === "failed" && "Reminders couldn't be generated this time. Your answers still work as normal."}
-      </div>
+    <main className="mx-auto max-w-3xl px-4 pt-10 pb-32">
+      <header className="mb-6">
+        <p className="text-xs font-medium uppercase tracking-wider text-accent">{projectName} · after your playtest</p>
+        <h1 className="mt-1 text-3xl font-semibold tracking-tight">{title || "Questionnaire"}</h1>
+        <div className={`mt-4 flex gap-2.5 rounded-xl p-3.5 text-sm ${pending ? "bg-warn-soft text-warn" : status?.prompts === "failed" ? "bg-bad-soft text-bad" : "bg-accent-soft text-[#3d37b8]"}`}>
+          <span aria-hidden className="mt-0.5">{pending ? "⏳" : status?.prompts === "failed" ? "⚠️" : "💡"}</span>
+          <p>
+            {pending && "Finding the moments you commented on… You can start answering (and even submit) now; reminders will appear under each question when ready."}
+            {status?.prompts === "done" && <>Reminders are based only on what you said or typed. They&apos;re suggestions: insert, edit or dismiss them. Nothing is filled in for you.{status.provider?.includes("placeholder") && <span className="opacity-70"> (Alpha: keyword matching stands in for the AI model.)</span>}</>}
+            {status?.prompts === "failed" && "Reminders couldn't be generated this time. Your answers still work as normal."}
+          </p>
+        </div>
+      </header>
 
-      {questions.map((q, i) => {
-        const qp = prompts.filter((p) => p.question_id === q.id && p.state !== "dismissed");
-        const a = ans(q.id);
-        return (
-          <section key={q.id} className="card space-y-3">
-            <h2 className="font-medium"><span className="text-muted mr-1">{i + 1}.</span>{q.prompt}</h2>
-
-            {qp.length > 0 && (
-              <div className="grid gap-2 sm:grid-cols-2">
-                {qp.map((p) => (
-                  <div key={p.id} className={`rounded-lg border p-2.5 space-y-2 ${p.state === "inserted" ? "border-ok/40 bg-ok-soft/50" : "border-accent/30 bg-accent-soft/40"}`}>
-                    {hasRecording && <ClipPlayer src={src} startMs={p.replay_start_ms} endMs={p.replay_end_ms} momentMs={p.start_ms} audioOnly={audioOnly} />}
-                    <p className="text-sm">
-                      <span className="text-xs text-muted font-mono mr-1">{fmtTime(p.start_ms)} {p.source === "typed" ? "you typed" : "you said"}</span>
-                      <span className="italic">“{p.quote}”</span>
-                    </p>
-                    <p className="text-xs text-muted">{p.hint}</p>
-                    <div className="flex gap-2">
-                      <button type="button" className="btn-ghost py-1 text-xs" disabled={p.state === "inserted"} onClick={() => insert(p)}>{p.state === "inserted" ? "Added ✓" : "Add to my answer"}</button>
-                      <button type="button" className="btn-ghost py-1 text-xs" onClick={() => setPromptState(p, "dismissed")}>Dismiss</button>
-                    </div>
+      <ol className="space-y-5">
+        {questions.map((q, i) => {
+          const qp = prompts.filter((p) => p.question_id === q.id && p.state !== "dismissed");
+          const a = ans(q.id);
+          const answered = Boolean(a.text.trim() || a.rating);
+          return (
+            <li key={q.id} className="card p-0 overflow-hidden">
+              <div className="p-5 space-y-3">
+                <h2 className="flex gap-3 text-[15px] font-medium leading-snug">
+                  <span className={`grid size-6 shrink-0 place-items-center rounded-full text-xs font-semibold ${answered ? "bg-ok text-white" : "bg-background text-muted border border-line"}`}>{answered ? "✓" : i + 1}</span>
+                  {q.prompt}
+                </h2>
+                {q.type === "rating" && (
+                  <div className="flex flex-wrap items-center gap-1.5 pl-9" role="radiogroup" aria-label="Rating">
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <button key={n} type="button" role="radio" aria-checked={a.rating === n} onClick={() => setAns(q.id, { rating: n })}
+                        className={`size-10 rounded-lg border text-sm font-medium transition-colors ${a.rating === n ? "bg-accent text-white border-accent" : "border-line bg-surface hover:border-accent/40"}`}>{n}</button>
+                    ))}
+                    <span className="ml-2 text-xs text-muted">1 poor · 5 great</span>
                   </div>
-                ))}
+                )}
+                <div className="pl-9">
+                  <textarea className="input min-h-[5.5rem]" rows={q.type === "rating" ? 2 : 3} value={a.text} onChange={(e) => setAns(q.id, { text: e.target.value })}
+                    placeholder={q.type === "rating" ? "Why? (optional)" : "Your answer"} aria-label={`Answer to question ${i + 1}`} />
+                </div>
               </div>
-            )}
 
-            {q.type === "rating" && (
-              <div className="flex gap-1.5" role="radiogroup" aria-label="Rating">
-                {[1, 2, 3, 4, 5].map((n) => (
-                  <button key={n} type="button" role="radio" aria-checked={a.rating === n} onClick={() => setAns(q.id, { rating: n })}
-                    className={`size-10 rounded-lg border text-sm font-medium ${a.rating === n ? "bg-accent text-white border-accent" : "border-line bg-surface hover:bg-background"}`}>{n}</button>
-                ))}
-                <span className="self-center text-xs text-muted ml-2">1 = poor · 5 = great</span>
-              </div>
-            )}
-            <textarea className="input" rows={q.type === "rating" ? 2 : 4} value={a.text} onChange={(e) => setAns(q.id, { text: e.target.value })}
-              placeholder={q.type === "rating" ? "Why? (optional)" : "Your answer"} aria-label={`Answer to question ${i + 1}`} />
-          </section>
-        );
-      })}
-      {error && <p className="text-sm text-bad">{error}</p>}
-      <p className="text-xs text-muted text-center">{saved === "saving" ? "Saving draft…" : saved === "saved" ? "Draft saved. You can safely reload this page." : saved === "error" ? "Couldn't save draft; check your connection." : ""}</p>
-      <button className="btn-primary w-full py-2.5" disabled={busy || !questions.length} onClick={submit}>{busy ? "Submitting…" : "Submit feedback"}</button>
+              {qp.length > 0 && (
+                <div className="border-t border-line bg-background/60 px-5 py-4">
+                  <p className="mb-2.5 pl-9 text-xs font-medium text-muted">From your playtest · {qp.length} moment{qp.length === 1 ? "" : "s"}</p>
+                  <ul className="space-y-2.5 pl-9">
+                    {qp.map((p) => (
+                      <li key={p.id} className={`flex gap-3 rounded-lg border bg-surface p-2.5 transition-colors ${p.state === "inserted" ? "border-ok/40" : "border-line"}`}>
+                        {hasRecording && (
+                          <div className="w-40 shrink-0 sm:w-48">
+                            <ClipPlayer src={src} poster={audioOnly ? undefined : `/api/sessions/${sessionId}/thumbnail?ms=${p.start_ms}&t=${encodeURIComponent(token)}`}
+                              startMs={p.replay_start_ms} endMs={p.replay_end_ms} momentMs={p.start_ms} audioOnly={audioOnly} />
+                          </div>
+                        )}
+                        <div className="flex min-w-0 flex-1 flex-col">
+                          <p className="text-sm leading-snug">
+                            <span className="mr-1.5 font-mono text-xs text-muted">{fmtTime(p.start_ms)} {p.source === "typed" ? "you typed" : "you said"}</span>
+                            <span className="italic">“{p.quote}”</span>
+                          </p>
+                          <p className="mt-1 text-xs text-muted">{p.hint}</p>
+                          <div className="mt-auto flex gap-1.5 pt-2">
+                            <button type="button" className="btn-ghost py-1 text-xs" disabled={p.state === "inserted"} onClick={() => insert(p)}>{p.state === "inserted" ? "Added ✓" : "Add to my answer"}</button>
+                            <button type="button" className="btn py-1 text-xs text-muted hover:text-foreground" onClick={() => setPromptState(p, "dismissed")}>Dismiss</button>
+                          </div>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </li>
+          );
+        })}
+      </ol>
+
+      <footer className="fixed inset-x-0 bottom-0 border-t border-line bg-surface/95 backdrop-blur">
+        <div className="mx-auto flex max-w-3xl items-center gap-4 px-4 py-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium">{answeredCount} of {questions.length} answered</p>
+            <p className="text-xs text-muted truncate">{error ? <span className="text-bad">{error}</span> : saved === "saving" ? "Saving draft…" : saved === "saved" ? "Draft saved. You can safely reload this page." : saved === "error" ? "Couldn't save draft; check your connection." : "Answers save automatically."}</p>
+          </div>
+          <div className="hidden h-1.5 w-32 overflow-hidden rounded-full bg-background sm:block" aria-hidden>
+            <div className="h-full rounded-full bg-ok transition-all" style={{ width: `${questions.length ? (answeredCount / questions.length) * 100 : 0}%` }} />
+          </div>
+          <button className="btn-primary px-5 py-2.5" disabled={busy || !questions.length} onClick={submit}>{busy ? "Submitting…" : "Submit feedback"}</button>
+        </div>
+      </footer>
     </main>
   );
 }

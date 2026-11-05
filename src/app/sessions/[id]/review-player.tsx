@@ -6,7 +6,7 @@ import type { Question, RecallPrompt, Utterance } from "@/lib/types";
 
 type Q = Question & { answer: { text: string; rating: number | null } | null; prompts: (RecallPrompt & { used: boolean; quote: string; moment_ms: number })[] };
 
-export function ReviewPlayer({ sessionId, hasRecording, audioOnly, utterances, questions }: { sessionId: string; hasRecording: boolean; audioOnly: boolean; utterances: Utterance[]; questions: Q[] }) {
+export function ReviewPlayer({ sessionId, hasRecording, audioOnly, durationMs, utterances, questions }: { sessionId: string; hasRecording: boolean; audioOnly: boolean; durationMs: number; utterances: Utterance[]; questions: Q[] }) {
   const router = useRouter();
   const video = useRef<HTMLVideoElement>(null);
   const [current, setCurrent] = useState(0);
@@ -34,6 +34,22 @@ export function ReviewPlayer({ sessionId, hasRecording, audioOnly, utterances, q
               onTimeUpdate={(e) => setCurrent(e.currentTarget.currentTime * 1000)} />
           ) : (
             <div className="aspect-video grid place-items-center text-sm text-muted bg-background">No recording for this session (tester declined capture or it failed).</div>
+          )}
+          {durationMs > 0 && utterances.length > 0 && (
+            <div className="border-t border-line px-4 py-3">
+              <div className="mb-1.5 flex justify-between text-[11px] text-muted">
+                <span>Moments</span>
+                <span className="flex gap-3"><span><i className="mr-1 inline-block size-2 rounded-full bg-accent" />spoken</span><span><i className="mr-1 inline-block size-2 rounded-full bg-warn" />typed</span></span>
+              </div>
+              <div className="relative h-6 rounded-md bg-background" role="list" aria-label="Comment markers">
+                <div className="absolute inset-y-0 left-0 rounded-md bg-accent/10" style={{ width: `${Math.min(100, (current / durationMs) * 100)}%` }} />
+                {utterances.map((u) => (
+                  <button key={u.id} type="button" role="listitem" title={`${fmtTime(u.start_ms)}: ${u.text}`} onClick={() => seek(Math.max(0, u.start_ms - 2000))} disabled={!hasRecording}
+                    className={`absolute top-1 h-4 w-1.5 -translate-x-1/2 rounded-full hover:scale-y-125 ${u.source === "typed" ? "bg-warn" : "bg-accent"} ${active?.id === u.id ? "ring-2 ring-foreground/30" : ""}`}
+                    style={{ left: `${Math.min(99.5, (u.start_ms / durationMs) * 100)}%` }} />
+                ))}
+              </div>
+            </div>
           )}
         </div>
 

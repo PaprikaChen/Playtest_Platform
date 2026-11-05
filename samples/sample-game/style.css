@@ -1,4 +1,6 @@
-html, body { margin: 0; background: #111522; color: #e8e6df; font-family: system-ui, sans-serif; text-align: center; }
-#hud { padding: 8px; font-size: 15px; letter-spacing: .02em; }
-canvas { background: #1b2136; display: block; margin: 0 auto; max-width: 100%; border-radius: 6px; }
-#help { font-size: 13px; opacity: .7; }
+html, body { margin: 0; height: 100%; background: #0d1020; color: #e8e6df; font-family: system-ui, sans-serif; text-align: center; overflow: hidden; }
+body { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
+#hud { font-size: 15px; letter-spacing: .02em; }
+/* Scale the 800x450 canvas to fit the frame, keeping its aspect ratio. */
+canvas { background: #1b2136; display: block; width: min(96vw, calc((100vh - 80px) * 16 / 9)); height: auto; border-radius: 8px; }
+#help { font-size: 13px; opacity: .7; margin: 0; }

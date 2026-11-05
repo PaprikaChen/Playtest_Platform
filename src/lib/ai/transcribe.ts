@@ -1,7 +1,6 @@
-import { execFile } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { promisify } from "node:util";
+import { ffmpeg } from "../media";
 
 export interface TranscriptSegment { text: string; start_ms: number; end_ms: number }
 export interface TranscriptResult { provider: string; placeholder: boolean; segments: TranscriptSegment[] }
@@ -71,21 +70,9 @@ export function groupWords(words: Word[], { gapMs = 700, maxMs = 12000 } = {}): 
 }
 
 // ---------- audio decoding (ffmpeg-static; no system ffmpeg needed) ----------
-const run = promisify(execFile);
-
-async function ffmpegPath(): Promise<string> {
-  const mod = (await import("ffmpeg-static")) as unknown as { default: string | null };
-  if (!mod.default) throw new Error("ffmpeg-static binary not available on this platform.");
-  return mod.default;
-}
-
 /** Decode any recording (WebM/Opus, WAV…) to 16 kHz mono float32 PCM. */
 export async function decodePcm16k(filePath: string): Promise<Float32Array> {
-  const { stdout } = await run(await ffmpegPath(), ["-v", "error", "-i", filePath, "-vn", "-f", "f32le", "-ac", "1", "-ar", "16000", "-"], {
-    encoding: "buffer",
-    maxBuffer: 1024 * 1024 * 1024,
-  });
-  const buf = stdout as Buffer;
+  const buf = await ffmpeg(["-i", filePath, "-vn", "-f", "f32le", "-ac", "1", "-ar", "16000", "-"]);
   // Copy into an aligned buffer: Float32Array needs a 4-byte-aligned offset.
   return new Float32Array(new Uint8Array(buf).buffer, 0, Math.floor(buf.byteLength / 4));
 }

@@ -89,6 +89,10 @@ test("creator setup → tester plays with screen + mic → recall questionnaire 
   log.spokenCards = await tester.locator("p", { hasText: "you said" }).allInnerTexts();
   expect((log.spokenCards as string[]).join(" ").toLowerCase()).toMatch(/too hard|floaty|where to go/);
   await cards.first().click();
+  // Server-rendered thumbnails (ffmpeg) must actually load for visible cards.
+  const thumb = tester.locator('img[alt^="Frame at"]').first();
+  await expect(thumb).toBeVisible();
+  await expect.poll(() => thumb.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth), { timeout: 15_000 }).toBeGreaterThan(0);
   await shot(tester, "e2e-4-recall-questionnaire");
 
   // Drafts autosave and survive a reload.

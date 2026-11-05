@@ -15,80 +15,107 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
   const questionnaire = latestQuestionnaire(id);
   const invites = listInvites(id);
   const sessions = listSessions(id);
+  const steps = [
+    { done: builds.length > 0, label: "Upload a web build" },
+    { done: Boolean(questionnaire), label: "Save the questionnaire" },
+    { done: invites.some((i) => i.active), label: "Create an invite link" },
+    { done: sessions.length > 0, label: "Share it with a tester" },
+  ];
+  const submitted = sessions.filter((s) => s.submitted_at).length;
 
   return (
     <Shell crumbs={[{ label: project.name }]}>
-      <h1 className="text-2xl font-semibold tracking-tight">{project.name}</h1>
-      {project.description && <p className="text-muted text-sm mt-1">{project.description}</p>}
-
-      <ol className="mt-6 grid gap-6 lg:grid-cols-3">
-        <li className="card space-y-4">
-          <StepTitle n={1} title="Upload a web build" done={builds.length > 0} />
-          <BuildUpload projectId={id} />
-          <ul className="divide-y divide-line text-sm">
-            {builds.map((b) => (
-              <li key={b.id} className="py-2 flex justify-between gap-2">
-                <span className="font-medium truncate">{b.label}</span>
-                <span className="text-muted text-xs shrink-0">{b.file_count} files · {fmtBytes(b.total_bytes)}</span>
-              </li>
-            ))}
-          </ul>
-        </li>
-        <li className="card space-y-4">
-          <StepTitle n={2} title="Write the questionnaire" done={Boolean(questionnaire)} />
-          <QuestionnaireEditor projectId={id} initial={questionnaire ?? null} />
-        </li>
-        <li className="card space-y-4">
-          <StepTitle n={3} title="Share an invite link" done={invites.some((i) => i.active)} />
-          <InviteManager
-            projectId={id}
-            builds={builds.map((b) => ({ id: b.id, label: b.label }))}
-            hasQuestionnaire={Boolean(questionnaire)}
-            invites={invites}
-          />
-        </li>
-      </ol>
-
-      <section className="mt-8">
-        <div className="flex items-baseline justify-between mb-3">
-          <h2 className="text-lg font-semibold">Feedback sessions</h2>
-          <span className="text-xs text-muted">Recordings are deleted automatically 7 days after the session.</span>
+      <header className="mb-6 flex flex-wrap items-end gap-4">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-3xl font-semibold tracking-tight">{project.name}</h1>
+          {project.description && <p className="mt-1 text-sm text-muted">{project.description}</p>}
         </div>
-        {sessions.length === 0 ? (
-          <div className="card text-sm text-muted">No sessions yet. Share an invite link and sessions will appear here.</div>
-        ) : (
-          <div className="card p-0 overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="text-left text-xs text-muted border-b border-line">
-                <tr>{["Tester", "Build", "Started", "Length", "Comments", "Answers", "Status", ""].map((h) => <th key={h} className="px-4 py-2 font-medium">{h}</th>)}</tr>
-              </thead>
-              <tbody className="divide-y divide-line">
+        <dl className="flex gap-6 text-sm">
+          <Stat label="Sessions" value={sessions.length} />
+          <Stat label="Submitted" value={submitted} />
+          <Stat label="Builds" value={builds.length} />
+        </dl>
+      </header>
+
+      {sessions.length === 0 && (
+        <ol className="mb-6 grid gap-2 sm:grid-cols-4">
+          {steps.map((s, i) => (
+            <li key={s.label} className={`flex items-center gap-2.5 rounded-xl border px-3 py-2.5 text-sm ${s.done ? "border-ok/30 bg-ok-soft/60" : "border-line bg-surface"}`}>
+              <span className={`grid size-6 shrink-0 place-items-center rounded-full text-xs font-semibold ${s.done ? "bg-ok text-white" : "border border-line text-muted"}`}>{s.done ? "✓" : i + 1}</span>
+              {s.label}
+            </li>
+          ))}
+        </ol>
+      )}
+
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="space-y-6 min-w-0">
+          <section>
+            <div className="mb-3 flex items-baseline justify-between">
+              <h2 className="text-lg font-semibold">Feedback</h2>
+              <span className="text-xs text-muted">Sessions auto-delete 7 days after they start</span>
+            </div>
+            {sessions.length === 0 ? (
+              <div className="card text-sm text-muted">No sessions yet. Create an invite link on the right and send it to a tester; their sessions appear here.</div>
+            ) : (
+              <ul className="card divide-y divide-line p-0">
                 {sessions.map((s) => (
-                  <tr key={s.id} className="hover:bg-background">
-                    <td className="px-4 py-2.5 font-medium">{s.tester_name}</td>
-                    <td className="px-4 py-2.5">{s.build_label}</td>
-                    <td className="px-4 py-2.5 text-muted">{fmtDate(s.created_at)}</td>
-                    <td className="px-4 py-2.5">{s.duration_ms ? fmtTime(s.duration_ms) : "—"}</td>
-                    <td className="px-4 py-2.5">{s.comment_count}</td>
-                    <td className="px-4 py-2.5">{s.answer_count}</td>
-                    <td className="px-4 py-2.5"><Status value={s.status} /></td>
-                    <td className="px-4 py-2.5 text-right"><Link className="text-accent hover:underline" href={`/sessions/${s.id}`}>Review →</Link></td>
-                  </tr>
+                  <li key={s.id}>
+                    <Link href={`/sessions/${s.id}`} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 hover:bg-background">
+                      <span className="grid size-8 place-items-center rounded-full bg-accent-soft text-sm font-semibold text-accent">{s.tester_name.slice(0, 1).toUpperCase()}</span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block font-medium">{s.tester_name}</span>
+                        <span className="block text-xs text-muted">{s.build_label} · {fmtDate(s.created_at)} · {s.duration_ms ? fmtTime(s.duration_ms) : "—"}</span>
+                      </span>
+                      <span className="text-xs text-muted">{s.comment_count} moment{s.comment_count === 1 ? "" : "s"} · {s.answer_count} answer{s.answer_count === 1 ? "" : "s"}</span>
+                      <Status value={s.status} />
+                      <span className="text-accent text-sm">Review →</span>
+                    </Link>
+                  </li>
                 ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+              </ul>
+            )}
+          </section>
+
+          <section className="card space-y-4">
+            <div className="flex items-baseline justify-between">
+              <h2 className="h2">Questionnaire</h2>
+              {questionnaire && <span className="text-xs text-muted">v{questionnaire.version} · links keep the version they were created with</span>}
+            </div>
+            <QuestionnaireEditor projectId={id} initial={questionnaire ?? null} />
+          </section>
+        </div>
+
+        <aside className="space-y-6">
+          <section className="card space-y-3">
+            <h2 className="h2">Invite links</h2>
+            <InviteManager projectId={id} builds={builds.map((b) => ({ id: b.id, label: b.label }))} hasQuestionnaire={Boolean(questionnaire)} invites={invites} />
+          </section>
+          <section className="card space-y-3">
+            <h2 className="h2">Builds</h2>
+            <BuildUpload projectId={id} />
+            {builds.length > 0 && (
+              <ul className="divide-y divide-line text-sm">
+                {builds.map((b) => (
+                  <li key={b.id} className="flex justify-between gap-2 py-2">
+                    <span className="truncate font-medium">{b.label}</span>
+                    <span className="shrink-0 text-xs text-muted">{b.file_count} files · {fmtBytes(b.total_bytes)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </aside>
+      </div>
     </Shell>
   );
 }
 
-function StepTitle({ n, title, done }: { n: number; title: string; done: boolean }) {
+function Stat({ label, value }: { label: string; value: number }) {
   return (
-    <div className="flex items-center gap-2">
-      <span className={`size-6 rounded-full grid place-items-center text-xs font-semibold ${done ? "bg-ok text-white" : "bg-background text-muted border border-line"}`}>{done ? "✓" : n}</span>
-      <h2 className="h2">{title}</h2>
+    <div className="text-right">
+      <dt className="text-xs text-muted">{label}</dt>
+      <dd className="text-xl font-semibold tabular-nums">{value}</dd>
     </div>
   );
 }
