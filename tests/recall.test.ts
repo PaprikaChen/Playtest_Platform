@@ -88,4 +88,11 @@ describe("buildRecallPrompt", () => {
     // "a bit hard" must not become "very hard": the summary keeps the tester's own intensity.
     expect(p).toContain("Do not strengthen or soften");
   });
+
+  it("names the declared session language so output never follows the browser locale", () => {
+    // The tester declares what they speak (issue #40); "zh-CN" style tags normalise to the primary code.
+    expect(buildRecallPrompt(questions, utterances, "en")).toContain("in english");
+    expect(buildRecallPrompt(questions, utterances, "zh-CN")).toContain("in chinese");
+    expect(buildRecallPrompt(questions, utterances, "xx")).toContain("same language");
+  });
 });

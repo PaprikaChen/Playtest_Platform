@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { ffmpeg } from "../media";
+import { SPOKEN_LANGUAGES } from "../types";
 
 export interface TranscriptSegment { text: string; start_ms: number; end_ms: number }
 export interface TranscriptResult { provider: string; placeholder: boolean; segments: TranscriptSegment[] }
@@ -94,7 +95,7 @@ function localAsr(): Promise<Asr> {
   return globalForAsr.__playtestAsr;
 }
 
-const LANG_NAMES: Record<string, string> = { en: "english", zh: "chinese", ja: "japanese", ko: "korean", es: "spanish", fr: "french", de: "german" };
+const LANG_NAMES: Record<string, string> = Object.fromEntries(SPOKEN_LANGUAGES.map((l) => [l.code, l.whisper]));
 
 async function transcribeLocal(filePath: string, lang?: string): Promise<Word[]> {
   const [asr, audio] = await Promise.all([localAsr(), decodePcm16k(filePath)]);

@@ -107,7 +107,7 @@ export async function processSession(sessionId: string) {
     updateSession(sessionId, { prompts_status: "running" });
     try {
       const utterances = listUtterances(sessionId);
-      const result = await generateRecall(q.questions, utterances);
+      const result = await generateRecall(q.questions, utterances, s.language);
       const byId = new Map(utterances.map((u) => [u.id, u]));
       tx(() => {
         run("DELETE FROM recall_prompts WHERE session_id=?", sessionId);
