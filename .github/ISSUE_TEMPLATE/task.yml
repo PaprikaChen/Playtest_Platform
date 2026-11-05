@@ -1,0 +1,33 @@
+name: Task
+description: A unit of work with acceptance criteria an agent or teammate can verify
+labels: ["status: to do"]
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: What should be true when this is done, and why it matters to developers or testers.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Checkable statements. Each one should map to a test or a manual check.
+      placeholder: |
+        - [ ] Uploading a ZIP without index.html shows "No index.html found…"
+        - [ ] Unit test covers the rejection
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context for the agent
+      description: Relevant files, spec sections, invariants from CLAUDE.md, links.
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      options: ["High", "Medium", "Low"]
+    validations:
+      required: true

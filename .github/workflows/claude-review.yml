@@ -1,0 +1,32 @@
+name: Claude PR review
+
+# Optional: AI code review on every PR, checked against the invariants in CLAUDE.md.
+# Activate by adding an ANTHROPIC_API_KEY repository secret; without it this job is skipped.
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review]
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      id-token: write
+    env:
+      HAS_KEY: ${{ secrets.ANTHROPIC_API_KEY != '' }}
+    steps:
+      - if: env.HAS_KEY != 'true'
+        run: echo "ANTHROPIC_API_KEY not set; skipping AI review."
+      - if: env.HAS_KEY == 'true'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - if: env.HAS_KEY == 'true'
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            Review this pull request. Read CLAUDE.md first and check every change against its "Invariants" section.
+            Report only concrete correctness, security or invariant problems, each with file:line and a failure
+            scenario. Also check that the PR links an issue and a docs/ai-log entry. Post the review as PR comments.

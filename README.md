@@ -19,6 +19,17 @@ Requires Node 22.5+ (uses the built-in `node:sqlite`). Data lives in `./data` (g
 
 Try it with the sample build: create a project, upload `samples/lantern-hop.zip`, save the default questionnaire, click **Create link**, then open the link in **Chrome** and pick "this tab" when asked to share your screen.
 
+## How we work with AI agents
+
+Every change follows: **issue with acceptance criteria → plan → test first → implement → browser check → AI log entry → PR → CI + review**.
+
+- [`CLAUDE.md`](CLAUDE.md): agent handbook covering the map, invariants, gotchas and workflow.
+- [`docs/decisions/`](docs/decisions): short records of key design decisions.
+- [`docs/ai-log/`](docs/ai-log): one entry per AI task (requirement, prompt, change, validation, human correction). A
+  Claude Code Stop hook blocks ending a session with an unlogged agent commit. `npm run ai-log:stats` summarizes the log.
+- `.github/`: issue template (acceptance criteria), PR template, CI (lint · typecheck · tests · build · AI-log
+  summary), and an optional Claude PR review (enabled by an `ANTHROPIC_API_KEY` secret).
+
 ## AI providers (optional)
 
 Copy `.env.example` to `.env.local`. Without any key the app runs fully with placeholders:
