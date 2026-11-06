@@ -135,6 +135,7 @@ export function startLiveCaptions(
   now: () => number,
   onFinal: (text: string, startMs: number, endMs: number) => void,
   onStatus: (s: CaptionStatus, detail?: string) => void = () => {},
+  lang?: string,
 ): () => Promise<void> {
   const W = window as unknown as Record<string, new () => SR>;
   const Ctor = W.SpeechRecognition ?? W.webkitSpeechRecognition;
@@ -147,7 +148,7 @@ export function startLiveCaptions(
   const rec = new Ctor();
   rec.continuous = true;
   rec.interimResults = true;
-  rec.lang = navigator.language || "en-US";
+  rec.lang = lang || navigator.language || "en-US";
   const begin = () => { startedAt = Date.now(); try { rec.start(); } catch { /* already started */ } };
   rec.onresult = (e) => {
     quickFailures = 0;

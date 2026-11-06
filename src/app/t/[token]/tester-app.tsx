@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { fmtTime } from "@/lib/format";
+import { SPOKEN_LANGUAGES } from "@/lib/types";
 import { MicMeter, useMicLevel } from "./mic-meter";
 import { ChunkUploader, pickMime, requestCapture, speechRecognitionSupported, startLiveCaptions, type CaptionStatus, type CaptureMode, type UploadStats } from "./recorder";
 
@@ -31,6 +32,14 @@ export function TesterApp(props: { token: string; projectName: string; projectDe
   const [panelOpen, setPanelOpen] = useState(true);
   const [canCaption, setCanCaption] = useState(false);
   useEffect(() => setCanCaption(speechRecognitionSupported()), []);
+  // The language the tester DECLARES they will speak (issue #40): the browser
+  // locale is only the default — a zh-CN browser must not force Chinese
+  // transcription on someone speaking English.
+  const [lang, setLang] = useState("en");
+  useEffect(() => {
+    const primary = navigator.language?.toLowerCase().split(/[-_]/)[0];
+    if (SPOKEN_LANGUAGES.some((l) => l.code === primary)) setLang(primary);
+  }, []);
 
   const t0 = useRef(0);
   const draftStart = useRef<number | null>(null);
@@ -92,7 +101,7 @@ export function TesterApp(props: { token: string; projectName: string; projectDe
     setWarnings(cap.warnings);
     const res = await fetch("/api/sessions", {
       method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ token, testerName: name, consent, captureMode: cap.mode, idempotencyKey: idem.current, language: navigator.language }),
+      body: JSON.stringify({ token, testerName: name, consent, captureMode: cap.mode, idempotencyKey: idem.current, language: lang }),
     });
     const body = await res.json();
     if (!res.ok) { cap.stream?.getTracks().forEach((t) => t.stop()); setStarting(false); return setError(body.error); }
@@ -123,6 +132,7 @@ export function TesterApp(props: { token: string; projectName: string; projectDe
         now,
         (text, s, e) => addComment({ text, start_ms: s, end_ms: e, source: "voice-live" }, sid),
         (st, detail) => setCaptionStatus({ s: st, detail }),
+        lang,
       );
     }
     setStage("playing");
@@ -201,9 +211,18 @@ export function TesterApp(props: { token: string; projectName: string; projectDe
               <p className="pt-1 text-xs text-muted">Only this game&apos;s developer can see your session. Everything is deleted automatically after 7 days, and nothing is filled in for you.</p>
             </fieldset>
             <div className="space-y-3">
-              <div>
-                <label className="label" htmlFor="tname">Your name or nickname</label>
-                <input id="tname" className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Sam" />
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="label" htmlFor="tname">Your name or nickname</label>
+                  <input id="tname" className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Sam" />
+                </div>
+                <div>
+                  <label className="label" htmlFor="tlang">Language you&apos;ll speak</label>
+                  <select id="tlang" className="input" value={lang} onChange={(e) => setLang(e.target.value)}>
+                    {SPOKEN_LANGUAGES.map((l) => <option key={l.code} value={l.code}>{l.label}</option>)}
+                  </select>
+                  <p className="mt-1 text-xs text-muted">Your transcript and reminders will use it.</p>
+                </div>
               </div>
               <label className="flex items-start gap-2.5 text-sm"><input type="checkbox" className="mt-0.5 size-4 accent-[var(--accent)]" checked={consent} onChange={(e) => setConsent(e.target.checked)} /> I agree to the recording described above.</label>
               {error && <p className="text-sm text-bad">{error}</p>}

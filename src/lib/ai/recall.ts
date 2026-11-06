@@ -1,4 +1,7 @@
-import type { Question } from "../types";
+import { SPOKEN_LANGUAGES, type Question } from "../types";
+
+/** "zh-CN" -> "zh"; unknown or empty -> null. */
+const normalizePrimary = (lang?: string | null) => lang?.toLowerCase().split(/[-_]/)[0] ?? null;
 
 export interface RecallInputUtterance { id: string; text: string; start_ms: number }
 export interface RecallMatch { question_id: string; utterance_id: string; hint: string; summary: string }
@@ -13,9 +16,12 @@ const fmt = (ms: number) => {
 
 // One compact prompt per session: all questions + all utterances, JSON out.
 // This keeps token use to a single call regardless of question count.
-export function buildRecallPrompt(questions: Question[], utterances: RecallInputUtterance[]): string {
+// `language` is the language the tester declared on the consent page (issue #40):
+// hints and summaries follow it, never the browser locale or the model's guess.
+export function buildRecallPrompt(questions: Question[], utterances: RecallInputUtterance[], language?: string | null): string {
   const qs = questions.map((q) => `${q.id}: ${q.prompt}`).join("\n");
   const us = utterances.map((u) => `${u.id} [${fmt(u.start_ms)}]: ${u.text}`).join("\n");
+  const name = SPOKEN_LANGUAGES.find((l) => l.code === normalizePrimary(language))?.whisper;
   return `You help a game playtester recall what they said while playing, so they can answer a questionnaire.
 Match each tester comment to the questionnaire questions it is clearly relevant to.
 
@@ -29,8 +35,9 @@ Rules:
   expressed in that comment as a possible written answer, including any suggestion they themselves voiced.
   Ground it ONLY in the tester's comments: no sentiment they did not express, no advice of your own,
   no judgement of the game. Do not strengthen or soften what they said: keep their intensity and
-  hedges ("a bit hard" stays "a bit hard", never "very hard"). Write the summary in the same language as the comment.
+  hedges ("a bit hard" stays "a bit hard", never "very hard").
   Good: "I found the second level very hard and didn't understand why failing sent me back to level one."
+- ${name ? `Write every hint and summary in ${name}: the tester chose that language.` : "Write every hint and summary in the same language as the comments."}
 - Refer to comments only by their id. Do not quote or rewrite them.
 
 QUESTIONS
@@ -165,9 +172,9 @@ export function configuredRecallProvider(): string {
   return "mock";
 }
 
-export async function generateRecall(questions: Question[], utterances: RecallInputUtterance[]): Promise<RecallResult> {
+export async function generateRecall(questions: Question[], utterances: RecallInputUtterance[], language?: string | null): Promise<RecallResult> {
   const provider = configuredRecallProvider();
   if (provider === "mock" || utterances.length === 0) return mockRecall(questions, utterances);
-  const { model, text } = await callProvider(provider, buildRecallPrompt(questions, utterances));
+  const { model, text } = await callProvider(provider, buildRecallPrompt(questions, utterances, language));
   return { provider, model, placeholder: false, matches: sanitizeMatches(extractJson(text), questions, utterances) };
 }

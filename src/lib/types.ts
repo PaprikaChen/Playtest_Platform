@@ -55,6 +55,21 @@ export interface SessionRow {
   created_at: number;
 }
 
+/**
+ * Languages a tester can declare they will speak (consent-page picker).
+ * The whole chain follows the choice: Whisper transcription (`whisper` is the
+ * name local Whisper expects) and the recall hints + summaries.
+ */
+export const SPOKEN_LANGUAGES = [
+  { code: "en", label: "English", whisper: "english" },
+  { code: "zh", label: "中文", whisper: "chinese" },
+  { code: "es", label: "Español", whisper: "spanish" },
+  { code: "fr", label: "Français", whisper: "french" },
+  { code: "de", label: "Deutsch", whisper: "german" },
+  { code: "ja", label: "日本語", whisper: "japanese" },
+  { code: "ko", label: "한국어", whisper: "korean" },
+] as const;
+
 export const RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 /** A session still "recording" with no uploads for this long is treated as abandoned. */
 export const STALE_RECORDING_MS = 30 * 60 * 1000;
