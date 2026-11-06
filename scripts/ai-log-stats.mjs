@@ -9,7 +9,8 @@ const entries = fs
   .filter((f) => /^\d{3}-.*\.md$/.test(f))
   .sort()
   .map((f) => {
-    const m = fs.readFileSync(path.join(dir, f), "utf8").match(/^---\n([\s\S]*?)\n---/);
+    // normalise CRLF: Windows checkouts (core.autocrlf) otherwise break the frontmatter match
+    const m = fs.readFileSync(path.join(dir, f), "utf8").replace(/\r\n/g, "\n").match(/^---\n([\s\S]*?)\n---/);
     const meta = {};
     for (const line of (m?.[1] ?? "").split("\n")) {
       const kv = line.match(/^(\w+):\s*(.*?)\s*(#.*)?$/);
