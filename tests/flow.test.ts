@@ -107,6 +107,10 @@ describe("creator → tester → review flow", () => {
 
     repo.setInviteActive(inv.id, false);
     expect(() => repo.createSession(inv.token, "y", "mic", null)).toThrow(/invalid|turned off/);
+    // Turning a link off also locks sessions already started with it (uploads, notes, answers).
+    expect(() => repo.requireTesterSession(s.id, inv.token)).toThrow(/turned off/);
+    repo.setInviteActive(inv.id, true);
+    expect(repo.requireTesterSession(s.id, inv.token).id).toBe(s.id);
   });
 
   it("purges sessions past the 7-day window", async () => {
