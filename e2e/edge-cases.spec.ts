@@ -84,6 +84,59 @@ test("turned-off invite link blocks testers", async ({ page, context }) => {
   expect(res.status()).toBe(403);
 });
 
+test("turning a link off mid-session stops the tester with a clear message, not a hang", async ({ page, context }) => {
+  await newGame(page, "Closed Mid Session");
+  const invite = await setUpInvite(page);
+  const tester = await context.newPage();
+  await tester.goto(invite);
+  await tester.getByRole("checkbox", { name: "Screen" }).uncheck();
+  await tester.getByRole("checkbox", { name: "Microphone" }).uncheck();
+  await tester.getByLabel(/I agree to the recording/).check();
+  await tester.getByRole("button", { name: "Start playtest" }).click();
+  await expect(tester.getByText("Comments only", { exact: true })).toBeVisible({ timeout: 60_000 });
+
+  await page.getByRole("button", { name: "Turn off" }).click();
+  await expect(page.getByRole("button", { name: "Turn on" })).toBeVisible();
+
+  await tester.getByRole("button", { name: "Finish and answer questions" }).click();
+  // (Next adds its own empty role="alert" route announcer, so match the text.)
+  await expect(tester.getByRole("alert").filter({ hasText: /turned off by the developer/ })).toBeVisible({ timeout: 30_000 });
+  await expect(tester.getByRole("button", { name: "Finish and answer questions" })).toBeEnabled();
+});
+
+test("AI wording: 'Use this wording' fills the answer, and the review marks it as AI wording", async ({ page, context }) => {
+  // RECALL_PROVIDER=fixture adds a fixed summary to notes tagged #summary (playwright.config.ts).
+  await newGame(page, `AI Wording ${Date.now()}`);
+  const invite = await setUpInvite(page);
+  const tester = await context.newPage();
+  await tester.goto(invite);
+  await tester.getByRole("checkbox", { name: "Screen" }).uncheck();
+  await tester.getByRole("checkbox", { name: "Microphone" }).uncheck();
+  await tester.getByLabel(/I agree to the recording/).check();
+  await tester.getByRole("button", { name: "Start playtest" }).click();
+  const note = tester.getByLabel(/Add a note/);
+  await note.fill("this jump is too hard #summary");
+  await note.press("Enter");
+  await expect(tester.getByText(/0:0\d$/)).toBeVisible();
+  await tester.getByRole("button", { name: "Finish and answer questions" }).click();
+  await tester.waitForURL(/\/survey\//, { timeout: 60_000 });
+
+  await expect(tester.getByText("One way to put it").first()).toBeVisible({ timeout: 60_000 });
+  await tester.getByRole("button", { name: "Use this wording" }).first().click();
+  await expect(tester.getByLabel("Answer to question 2")).toHaveValue(/In my words: this jump is too hard/);
+  await expect(tester.getByRole("button", { name: "Added ✓" }).first()).toBeVisible();
+  await tester.getByRole("button", { name: "Submit feedback" }).click();
+  await expect(tester.getByText(/Thanks for playtesting/)).toBeVisible();
+
+  await page.reload();
+  await page.getByRole("link", { name: /^Feedback/ }).click();
+  await page.getByRole("link", { name: "Review" }).first().click();
+  await expect(page.getByText("Includes AI wording")).toBeVisible();
+  await expect(page.getByText("Used AI wording")).toBeVisible();
+  await page.getByText("Includes AI wording").scrollIntoViewIfNeeded();
+  await page.screenshot({ path: path.join(SHOTS, "e2e-6-ai-wording-review.png") });
+});
+
 test("game switcher lists games and switches between them", async ({ page }) => {
   const id = Date.now(); // unique per run: tests share one database across repeats
   await newGame(page, `Switch A ${id}`);

@@ -172,9 +172,32 @@ export function configuredRecallProvider(): string {
   return "mock";
 }
 
+/**
+ * E2E-only provider (RECALL_PROVIDER=fixture, set by playwright.config.ts): the keyword mock plus a fixed
+ * summary for comments containing FIXTURE_SUMMARY_TAG, so the browser suite can test the summary buttons
+ * deterministically and for free, while untagged comments keep the no-summary layout covered.
+ */
+export const FIXTURE_SUMMARY_TAG = "#summary";
+export function fixtureRecall(questions: Question[], utterances: RecallInputUtterance[]): RecallResult {
+  const text = new Map(utterances.map((u) => [u.id, u.text]));
+  const r = mockRecall(questions, utterances);
+  return {
+    ...r,
+    provider: "fixture",
+    matches: r.matches.map((m) => {
+      const t = text.get(m.utterance_id) ?? "";
+      return t.includes(FIXTURE_SUMMARY_TAG) ? { ...m, summary: `In my words: ${t.replace(FIXTURE_SUMMARY_TAG, "").trim()}.` } : m;
+    }),
+  };
+}
+
 export async function generateRecall(questions: Question[], utterances: RecallInputUtterance[], language?: string | null): Promise<RecallResult> {
   const provider = configuredRecallProvider();
   if (provider === "mock" || utterances.length === 0) return mockRecall(questions, utterances);
+  if (provider === "fixture") {
+    if (process.env.NODE_ENV === "production") throw new Error("RECALL_PROVIDER=fixture is for tests only.");
+    return fixtureRecall(questions, utterances);
+  }
   const { model, text } = await callProvider(provider, buildRecallPrompt(questions, utterances, language));
   return { provider, model, placeholder: false, matches: sanitizeMatches(extractJson(text), questions, utterances) };
 }

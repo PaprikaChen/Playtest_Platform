@@ -29,10 +29,10 @@ export default defineConfig({
     // Isolated data dir and port so E2E never touches dev data.
     // Env goes through `env`, not a VAR=x command prefix, so this also runs on Windows.
     command: `npx next dev -p ${PORT}`,
-    // RECALL_PROVIDER is pinned to the keyword mock: Next loads .env.local on its own,
-    // so a developer's real API key would otherwise leak into E2E (nondeterministic
-    // summaries renamed the card buttons and failed the suite, and it spends tokens).
-    env: { ...process.env, PLAYTEST_DATA_DIR: ".e2e-data", NEXT_DIST_DIR: ".next-e2e", RECALL_PROVIDER: "mock" },
+    // RECALL_PROVIDER is pinned to the deterministic fixture (keyword mock + fixed summaries for
+    // comments tagged "#summary"): Next loads .env.local on its own, so a developer's real API key
+    // would otherwise leak into E2E (nondeterministic summaries failed the suite, and it spends tokens).
+    env: { ...process.env, PLAYTEST_DATA_DIR: ".e2e-data", NEXT_DIST_DIR: ".next-e2e", RECALL_PROVIDER: "fixture" },
     url: `http://localhost:${PORT}`,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
