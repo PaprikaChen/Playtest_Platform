@@ -27,7 +27,25 @@ describe("sanitizeMatches", () => {
       questions,
       utterances,
     );
-    expect(out).toEqual([{ question_id: "q_a", utterance_id: "u1", hint: "You mentioned this jump. Say more?", summary: "" }]);
+    expect(out).toEqual([{ question_id: "q_a", utterance_id: "u1", hint: "You mentioned this jump. Say more?", summary: "", also: [] }]);
+  });
+
+  it("gives each comment ONE card, under its first (best) question; other questions become 'also'", () => {
+    const out = sanitizeMatches(
+      {
+        matches: [
+          { question_id: "q_a", utterance_id: "u1", hint: "h", also_question_ids: ["q_b", "q_x", "q_a"] },
+          { question_id: "q_c", utterance_id: "u1", hint: "second listing of the same comment" },
+          { question_id: "q_c", utterance_id: "u2", hint: "h" },
+        ],
+      },
+      questions,
+      utterances,
+    );
+    expect(out.map((m) => [m.question_id, m.utterance_id, m.also])).toEqual([
+      ["q_a", "u1", ["q_b", "q_c"]], // unknown q_x and the primary itself are dropped
+      ["q_c", "u2", []],
+    ]);
   });
 
   it("keeps a summary, normalises whitespace, and caps its length", () => {
@@ -68,6 +86,18 @@ describe("mockRecall", () => {
     expect(r.placeholder).toBe(true);
   });
 
+  it("puts a comment under the question it fits best, never twice", () => {
+    const qs: Question[] = [
+      { id: "q_ctrl", type: "rating", prompt: "How did the controls feel?" },
+      { id: "q_hard", type: "text", prompt: "Which part felt too difficult or frustrating?" },
+    ];
+    // "jump" hits controls once; "hard", "impossible", "frustrating" hit difficulty three times.
+    const us = [{ id: "u1", text: "this jump is hard, impossible and frustrating", start_ms: 0 }];
+    const r = mockRecall(qs, us);
+    expect(r.matches).toHaveLength(1);
+    expect(r.matches[0]).toMatchObject({ question_id: "q_hard", utterance_id: "u1", also: ["q_ctrl"] });
+  });
+
   it("produces no summaries (they require a real model)", () => {
     for (const m of mockRecall(questions, utterances).matches) expect(m.summary).toBe("");
   });
@@ -87,6 +117,8 @@ describe("buildRecallPrompt", () => {
     expect(p).toContain("FIRST PERSON");
     // "a bit hard" must not become "very hard": the summary keeps the tester's own intensity.
     expect(p).toContain("Do not strengthen or soften");
+    expect(p).toContain("at most ONE question");
+    expect(p).toContain('"also_question_ids"');
   });
 
   it("names the declared session language so output never follows the browser locale", () => {
