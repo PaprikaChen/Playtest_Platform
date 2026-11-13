@@ -5,10 +5,10 @@ issue: null
 agent: claude-code
 model: claude-opus-5-5
 type: feature
-commits: [33e11ad, 362e7f6, 1120b9c, e6983f2]
+commits: [33e11ad, 362e7f6, 1120b9c, e6983f2, 5bc17be]
 outcome: accepted
 human_corrections: 1
-caught_by: [unit-test]
+caught_by: [unit-test, browser-test]
 ---
 ## Requirement
 Recall-card redesign agreed with Amilia (2026-11-12): (1) the AI wording appears only when the tester asks for it;
@@ -36,6 +36,10 @@ repeating; (3) comments no question picked up are offered at the end ("Other thi
   run failed at a later step that was not diagnosed; the same code then passed 4× in a row, so the stalling server
   is the likely cause, not proven.
 - Dev-server log noise during runs (`__webpack_require__.C`, a jest-worker "invalid package config"): no test failed.
+
+- Clicked through by hand in the in-app browser (2026-11-13, dev server with `RECALL_PROVIDER=fixture`): found that
+  "Added to question N" was lost on reload, so a comment could be added twice. Fixed by deriving it from the saved
+  answers; the E2E now reloads and checks (3/3).
 
 ## Not verified
 - Whether a real model follows the one-question rule (no API key here; #16).
