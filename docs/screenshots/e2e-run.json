@@ -1,22 +1,21 @@
 {
-  "sidePanel": "Recording\n0:23\nMic\nUpload OK\n\nThink out loud: what you notice, expect, or find confusing.\n\nScreen sharing stopped. Your voice is still being recorded and comments still work.\n\nYour notes\npinned to the moment\nTyped\n0:02\nthe door is hard to see\nAdd a note\ntimestamped when you start typing\n\nEnter saves the note. Click the game to keep playing.\n\nFinish and answer questions",
-  "recallCards": 5,
+  "sidePanel": "Recording\n0:24\nMic\nUpload OK\n\nThink out loud: what you notice, expect, or find confusing.\n\nScreen sharing stopped. Your voice is still being recorded and comments still work.\n\nYour notes\npinned to the moment\nTyped\n0:02\nthe door is hard to see\nAdd a note\ntimestamped when you start typing\n\nEnter saves the note. Click the game to keep playing.\n\nFinish and answer questions",
+  "recallCards": 4,
   "spokenCards": [
-    "Reminders are based only on what you said or typed; “One way to put it” is an AI rewording of your own comment and may be imperfect. They're suggestions: insert, edit or dismiss them. Nothing is filled in for you. (Alpha: keyword matching stands in for the AI model.)",
-    "0:03you said“I don't understand where to go after the first platform”",
-    "0:10you said“This jump is way too hard, I keep falling off”",
+    "Reminders are based only on what you said or typed. They're suggestions: insert, edit or dismiss them. “Help me put this in words” shows an AI rewording of your own comment, which may be imperfect. Nothing is filled in for you. (Alpha: keyword matching stands in for the AI model.)",
+    "0:02you said“I don't understand where to go after the first platform”",
     "0:10you said“This jump is way too hard, I keep falling off”",
     "0:17you said“The controls feel a little floaty when I land”"
   ],
   "media": {
-    "duration": 24.321,
+    "duration": 24.72,
     "width": 1440,
-    "audioBytes": 208103,
-    "videoBytes": 75152
+    "audioBytes": 209062,
+    "videoBytes": 87206
   },
   "timeline": [
     "0:02\nTyped\nthe door is hard to see",
-    "0:03\nSpoken\nI don't understand where to go after the first platform",
+    "0:02\nSpoken\nI don't understand where to go after the first platform",
     "0:10\nSpoken\nThis jump is way too hard, I keep falling off",
     "0:17\nSpoken\nThe controls feel a little floaty when I land"
   ]

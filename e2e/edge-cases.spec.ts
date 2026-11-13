@@ -147,6 +147,11 @@ test("recall cards: AI wording only on request, one card per comment, unmatched 
   await expect(tester.getByLabel("Answer to question 4")).toHaveValue(/I wonder who drew the lanterns/);
   await tester.getByText("Other things you mentioned").scrollIntoViewIfNeeded();
   await tester.screenshot({ path: path.join(SHOTS, "e2e-7-recall-cards-on-request.png"), fullPage: true });
+  // Phone width: the new card links and the "Add to a question" picker must not cause sideways scrolling.
+  await tester.setViewportSize({ width: 375, height: 812 });
+  expect(await tester.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375);
+  await tester.screenshot({ path: path.join(SHOTS, "e2e-7-recall-cards-on-request-375.png"), fullPage: true });
+  await tester.setViewportSize({ width: 1440, height: 900 });
   await tester.getByRole("button", { name: "Submit feedback" }).click();
   await expect(tester.getByText(/Thanks for playtesting/)).toBeVisible();
 
