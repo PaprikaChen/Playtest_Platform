@@ -15,7 +15,6 @@ export function Survey({ token, sessionId, projectName, audioOnly, onSubmitted }
   const [title, setTitle] = useState("");
   const [prompts, setPrompts] = useState<Prompt[]>([]);
   const [others, setOthers] = useState<Moment[]>([]);
-  const [addedOther, setAddedOther] = useState<Record<string, number>>({}); // moment id -> question number it was added to
   const [status, setStatus] = useState<Status | null>(null);
   const [hasRecording, setHasRecording] = useState(false);
   const [answers, setAnswers] = useState<Record<string, Ans>>({});
@@ -110,8 +109,9 @@ export function Survey({ token, sessionId, projectName, audioOnly, onSubmitted }
     const a = ans(q.id);
     const line = quoteLine(m);
     setAns(q.id, { text: a.text ? `${a.text.trimEnd()}\n${line}` : line });
-    setAddedOther((all) => ({ ...all, [m.id]: questionIndex + 1 }));
   }
+  // Derived from the saved answers (not memory), so "added" survives a reload and nothing gets added twice.
+  const addedTo = (m: Moment) => { const line = quoteLine(m).trim(); const k = questions.findIndex((q) => ans(q.id).text.includes(line)); return k >= 0 ? k + 1 : 0; };
   const questionNumber = (id: string) => questions.findIndex((q) => q.id === id) + 1;
 
   async function submit() {
@@ -241,8 +241,8 @@ export function Survey({ token, sessionId, projectName, audioOnly, onSubmitted }
                     <span className="num mr-1.5 text-xs font-semibold text-accent-strong">{fmtTime(m.start_ms)}</span><span className="mr-1.5 text-xs text-muted">{m.source === "typed" ? "you typed" : "you said"}</span>
                     <span className="italic">“{m.quote}”</span>
                   </p>
-                  {addedOther[m.id] ? (
-                    <p className="text-xs text-ok">Added to question {addedOther[m.id]} ✓</p>
+                  {addedTo(m) ? (
+                    <p className="text-xs text-ok">Added to question {addedTo(m)} ✓</p>
                   ) : (
                     <select className="input w-auto max-w-full py-1 text-xs" aria-label={`Add “${m.quote}” to a question`} value=""
                       onChange={(e) => { if (e.target.value !== "") addOther(m, Number(e.target.value)); }}>

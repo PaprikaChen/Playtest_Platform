@@ -145,6 +145,11 @@ test("recall cards: AI wording only on request, one card per comment, unmatched 
   await others.getByRole("combobox").selectOption({ label: "4. What did you enjoy most?" });
   await expect(others).toContainText("Added to question 4 ✓");
   await expect(tester.getByLabel("Answer to question 4")).toHaveValue(/I wonder who drew the lanterns/);
+  // After a reload it must still say "added", or the tester could add the same line twice.
+  await expect(tester.getByText("Draft saved")).toBeVisible({ timeout: 10_000 });
+  await tester.reload();
+  await expect(others).toContainText("Added to question 4 ✓");
+  await expect(others.getByRole("combobox")).toHaveCount(0);
   await tester.getByText("Other things you mentioned").scrollIntoViewIfNeeded();
   await tester.screenshot({ path: path.join(SHOTS, "e2e-7-recall-cards-on-request.png"), fullPage: true });
   // Phone width: the new card links and the "Add to a question" picker must not cause sideways scrolling.
