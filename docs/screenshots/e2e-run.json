@@ -1,5 +1,5 @@
 {
-  "sidePanel": "Recording\n0:24\nMic\nUpload OK\n\nThink out loud: what you notice, expect, or find confusing.\n\nScreen sharing stopped. Your voice is still being recorded and comments still work.\n\nYour notes\npinned to the moment\nTyped\n0:02\nthe door is hard to see\nAdd a note\ntimestamped when you start typing\n\nEnter saves the note. Click the game to keep playing.\n\nFinish and answer questions",
+  "sidePanel": "Recording\n0:23\nMic\nUpload OK\n\nThink out loud: what you notice, expect, or find confusing.\n\nScreen sharing stopped. Your voice is still being recorded and comments still work.\n\nYour notes\npinned to the moment\nTyped\n0:02\nthe door is hard to see\nAdd a note\ntimestamped when you start typing\n\nEnter saves the note. Click the game to keep playing.\n\nFinish and answer questions",
   "recallCards": 4,
   "spokenCards": [
     "Reminders are based only on what you said or typed. They're suggestions: insert, edit or dismiss them. “Help me put this in words” shows an AI rewording of your own comment, which may be imperfect. Nothing is filled in for you. (Alpha: keyword matching stands in for the AI model.)",
@@ -8,10 +8,10 @@
     "0:17you said“The controls feel a little floaty when I land”"
   ],
   "media": {
-    "duration": 24.72,
+    "duration": 24.331,
     "width": 1440,
     "audioBytes": 209062,
-    "videoBytes": 87206
+    "videoBytes": 71101
   },
   "timeline": [
     "0:02\nTyped\nthe door is hard to see",
