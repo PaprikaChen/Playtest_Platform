@@ -28,6 +28,10 @@ export interface RecallPrompt {
   state: "shown" | "inserted" | "dismissed";
   /** What the tester inserted into their answer: their own quote or the AI wording. Kept after a later dismiss. */
   inserted_as: "quote" | "summary" | null;
+  /** JSON array of other question ids this comment also relates to (its card shows only under question_id). */
+  also_json: string;
+  /** 1 once the tester clicked "Help me put this in words" (the AI wording is shown on request only). */
+  summary_revealed: number;
 }
 
 export interface SessionRow {

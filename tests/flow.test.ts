@@ -91,6 +91,35 @@ describe("creator → tester → review flow", () => {
     expect(() => repo.setPromptState(s.id, a.id, "bogus")).toThrow(/Invalid/);
   });
 
+  it("recall cards: one card per comment, 'also' questions stored, opening the AI wording is recorded", async () => {
+    const p = repo.createProject("Cards");
+    const b = await repo.createBuild(p.id, "v1", "game.zip", await sampleZip());
+    const q = repo.saveQuestionnaire(p.id, "", [
+      { type: "rating", prompt: "How did the controls feel?" },
+      { type: "text", prompt: "Which part felt too difficult or frustrating?" },
+    ]);
+    const s = repo.createSession(repo.createInvite(p.id, b.id, q.id).token, "Kai", "comments-only", null);
+    repo.addUtterances(s.id, [
+      { source: "typed", text: "this jump is hard, impossible and frustrating", start_ms: 5_000, end_ms: 5_000 },
+      { source: "typed", text: "I wonder who drew the lanterns", start_ms: 9_000, end_ms: 9_000 },
+      { source: "typed", text: "ok", start_ms: 12_000, end_ms: 12_000 },
+    ]);
+    repo.updateSession(s.id, { status: "processing" });
+    await proc.processSession(s.id);
+
+    const prompts = repo.listPrompts(s.id);
+    expect(prompts).toHaveLength(1); // not repeated under the controls question
+    expect(prompts[0].question_id).toBe(q.questions[1].id);
+    expect(JSON.parse(prompts[0].also_json)).toEqual([q.questions[0].id]);
+    expect(prompts[0].summary_revealed).toBe(0);
+
+    repo.revealSummary(s.id, prompts[0].id);
+    expect(repo.listPrompts(s.id)[0].summary_revealed).toBe(1);
+
+    // Comments no question picked up are offered at the end; one-word filler is not.
+    expect(repo.listUnmatchedUtterances(s.id).map((u) => u.text)).toEqual(["I wonder who drew the lanterns"]);
+  });
+
   it("enforces invite and session scoping", async () => {
     const p1 = repo.createProject("A");
     const p2 = repo.createProject("B");
