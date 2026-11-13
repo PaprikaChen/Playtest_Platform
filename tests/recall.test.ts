@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildRecallPrompt, mockRecall, sanitizeMatches } from "@/lib/ai/recall";
+import { buildRecallPrompt, FIXTURE_SUMMARY_TAG, fixtureRecall, mockRecall, sanitizeMatches } from "@/lib/ai/recall";
 import type { Question } from "@/lib/types";
 
 const questions: Question[] = [
@@ -94,5 +94,16 @@ describe("buildRecallPrompt", () => {
     expect(buildRecallPrompt(questions, utterances, "en")).toContain("in english");
     expect(buildRecallPrompt(questions, utterances, "zh-CN")).toContain("in chinese");
     expect(buildRecallPrompt(questions, utterances, "xx")).toContain("same language");
+  });
+});
+
+describe("fixtureRecall (E2E only)", () => {
+  it("adds a deterministic summary only to comments tagged for it, so both card layouts get tested", () => {
+    const tagged = [...utterances, { id: "u4", text: `this jump is impossible ${FIXTURE_SUMMARY_TAG}`, start_ms: 99_000 }];
+    const r = fixtureRecall(questions, tagged);
+    const byU = new Map(r.matches.map((m) => [m.utterance_id, m.summary]));
+    expect(byU.get("u4")).toBe("In my words: this jump is impossible.");
+    expect(byU.get("u1")).toBe("");
+    expect(r.placeholder).toBe(true);
   });
 });

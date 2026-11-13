@@ -188,6 +188,8 @@ export function requireTesterSession(sessionId: string, token: string | null): S
   const s = getSession(sessionId);
   const inv = token ? get<Invite>("SELECT * FROM invites WHERE token=?", token) : undefined;
   if (!s || !inv || s.invite_id !== inv.id) throw new HttpError(403, "Not allowed for this session.");
+  // A link the developer turned off locks its sessions too, not only new ones.
+  if (!inv.active) throw new HttpError(403, "This playtest link was turned off by the developer.");
   return s;
 }
 

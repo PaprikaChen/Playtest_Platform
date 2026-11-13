@@ -148,6 +148,7 @@ export function TesterApp(props: { token: string; projectName: string; projectDe
   }
 
   async function finish() {
+    setFinishMsg("");
     setStage("finishing");
     const durationMs = now();
     // Wait for the recogniser's last phrase so nothing said right before Finish is lost.
@@ -169,7 +170,13 @@ export function TesterApp(props: { token: string; projectName: string; projectDe
       method: "POST", headers: { "content-type": "application/json", "x-invite-token": token },
       body: JSON.stringify({ chunkCount: uploader.current?.nextSeq ?? 0, durationMs, mime: rec?.mimeType }),
     });
-    if (!res.ok) { setFinishMsg("Could not finish the session. Check your connection and retry."); setStage("playing"); return; }
+    if (!res.ok) {
+      // 403: the developer turned the link off; say so instead of blaming the connection.
+      const why = res.status === 403 ? ((await res.json().catch(() => ({}))).error as string | undefined) : undefined;
+      setFinishMsg(why ?? "Could not finish the session. Check your connection and retry.");
+      setStage("playing");
+      return;
+    }
     stopped.current = true;
     window.location.replace(`/t/${token}/survey/${sessionId}`);
   }
@@ -270,8 +277,8 @@ export function TesterApp(props: { token: string; projectName: string; projectDe
             <span className="ml-auto flex items-center gap-2 text-xs text-muted">
               {hasMic && <span className="flex items-center gap-1.5" title="Microphone level">Mic <MicMeter level={level} /></span>}
               {mode !== "comments-only" && (
-                <span title={`Uploaded ${upload.sent} part${upload.sent === 1 ? "" : "s"}`} className={upload.retrying ? "text-warn" : "text-ok"}>
-                  {upload.retrying ? "Upload retrying" : upload.pending > 1 ? `Uploading ${upload.pending}` : "Upload OK"}
+                <span title={upload.stopped ?? `Uploaded ${upload.sent} part${upload.sent === 1 ? "" : "s"}`} className={upload.stopped ? "text-bad" : upload.retrying ? "text-warn" : "text-ok"}>
+                  {upload.stopped ? "Upload stopped" : upload.retrying ? "Upload retrying" : upload.pending > 1 ? `Uploading ${upload.pending}` : "Upload OK"}
                 </span>
               )}
             </span>
@@ -312,6 +319,7 @@ export function TesterApp(props: { token: string; projectName: string; projectDe
           <button className="btn-primary w-full py-2.5" disabled={stage === "finishing"} onClick={finish}>
             {stage === "finishing" ? finishMsg || "Finishing…" : "Finish and answer questions"}
           </button>
+          {stage !== "finishing" && finishMsg && <p role="alert" className="text-xs text-bad">{finishMsg}</p>}
         </div>
       </aside>
     </div>

@@ -50,7 +50,11 @@ async function sha256(buf: ArrayBuffer) {
   return [...new Uint8Array(h)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-export interface UploadStats { sent: number; pending: number; retrying: boolean; bytes: number }
+/** `stopped`: the server refused for good (e.g. the link was turned off); retrying would never succeed. */
+export interface UploadStats { sent: number; pending: number; retrying: boolean; bytes: number; stopped?: string }
+
+// 422 (checksum mismatch) and 5xx/408/429 are worth retrying; these never will be.
+const PERMANENT_STATUS = new Set([400, 403, 404, 409]);
 
 /**
  * Sequential uploader with retries. Each chunk keeps its sequence number, so a
@@ -73,7 +77,7 @@ export class ChunkUploader {
   }
 
   push(blob: Blob) {
-    if (!blob.size) return;
+    if (!blob.size || this.stats.stopped) return;
     this.queue.push({ seq: this.nextSeq++, blob });
     this.emit();
     void this.pump();
@@ -91,6 +95,13 @@ export class ChunkUploader {
           headers: { "x-invite-token": this.token, "x-checksum": await sha256(buf), "content-type": "application/octet-stream" },
           body: buf,
         });
+        if (PERMANENT_STATUS.has(res.status)) {
+          const body = await res.json().catch(() => ({}));
+          this.stats.stopped = String(body.error ?? `Upload refused (${res.status}).`);
+          this.queue = [];
+          this.consecutiveFailures = 0;
+          break;
+        }
         if (!res.ok) throw new Error(String(res.status));
         this.queue.shift();
         this.stats.sent++;

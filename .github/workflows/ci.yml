@@ -5,6 +5,11 @@ on:
   push:
     branches: [main]
 
+env:
+  # onnxruntime-node (local Whisper) otherwise downloads ~300 MB of CUDA binaries from nuget.org on Linux
+  # during npm ci. We run on CPU only; that download timed out and failed a run once.
+  ONNXRUNTIME_NODE_INSTALL: skip
+
 jobs:
   check:
     runs-on: ubuntu-latest
