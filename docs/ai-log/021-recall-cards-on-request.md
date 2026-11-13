@@ -32,8 +32,9 @@ repeating; (3) comments no question picked up are offered at the end ("Other thi
 - `npm run check`: 45 unit tests pass (2 Whisper tests skipped with SKIP_ASR=1); typecheck and lint clean.
 - `npm run e2e`: 13/13; the new recall-cards test passed 4 runs in a row. Screenshots checked: questionnaire at 1440
   and 375 px (no sideways scroll, now asserted in the test), review page shows "Used AI wording" + "opened by tester".
-- The first E2E attempts could not even start the test server: the disk was 98% full (about 4 GB free). The earlier
-  "failed step" was the same server stalling mid-run, not an app bug; with load lower the same test passes.
+- The first E2E attempts could not even start the test server: the disk was 98% full (about 4 GB free). One earlier
+  run failed at a later step that was not diagnosed; the same code then passed 4× in a row, so the stalling server
+  is the likely cause, not proven.
 - Dev-server log noise during runs (`__webpack_require__.C`, a jest-worker "invalid package config"): no test failed.
 
 ## Not verified
