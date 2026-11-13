@@ -104,7 +104,7 @@ test("turning a link off mid-session stops the tester with a clear message, not 
   await expect(tester.getByRole("button", { name: "Finish and answer questions" })).toBeEnabled();
 });
 
-test("AI wording: 'Use this wording' fills the answer, and the review marks it as AI wording", async ({ page, context }) => {
+test("recall cards: AI wording only on request, one card per comment, unmatched comments offered at the end", async ({ page, context }) => {
   // RECALL_PROVIDER=fixture adds a fixed summary to notes tagged #summary (playwright.config.ts).
   await newGame(page, `AI Wording ${Date.now()}`);
   const invite = await setUpInvite(page);
@@ -115,16 +115,38 @@ test("AI wording: 'Use this wording' fills the answer, and the review marks it a
   await tester.getByLabel(/I agree to the recording/).check();
   await tester.getByRole("button", { name: "Start playtest" }).click();
   const note = tester.getByLabel(/Add a note/);
-  await note.fill("this jump is too hard #summary");
-  await note.press("Enter");
-  await expect(tester.getByText(/0:0\d$/)).toBeVisible();
+  for (const text of ["this jump is too hard #summary", "I wonder who drew the lanterns"]) {
+    await note.fill(text);
+    await note.press("Enter");
+    await expect(tester.getByText(text)).toBeVisible();
+  }
+  await expect(tester.getByText(/, saving/)).toHaveCount(0);
   await tester.getByRole("button", { name: "Finish and answer questions" }).click();
   await tester.waitForURL(/\/survey\//, { timeout: 60_000 });
+  await expect(tester.getByText(/Reminders are based only/)).toBeVisible({ timeout: 60_000 });
 
-  await expect(tester.getByText("One way to put it").first()).toBeVisible({ timeout: 60_000 });
-  await tester.getByRole("button", { name: "Use this wording" }).first().click();
+  // One card for the jump comment (under "too difficult"), pointing at the controls question instead of repeating.
+  await expect(tester.getByText("“this jump is too hard #summary”")).toHaveCount(1);
+  await expect(tester.locator("#question-2").getByText(/Also relates to/)).toContainText("question 3");
+
+  // The AI wording is hidden until asked for, and stays open after a reload.
+  await expect(tester.getByText("One way to put it")).toHaveCount(0);
+  await tester.getByRole("button", { name: "Help me put this in words" }).click();
+  await expect(tester.getByText("One way to put it")).toBeVisible();
+  await tester.reload();
+  await expect(tester.getByText("One way to put it")).toBeVisible();
+  await tester.getByRole("button", { name: "Use this wording" }).click();
   await expect(tester.getByLabel("Answer to question 2")).toHaveValue(/In my words: this jump is too hard/);
-  await expect(tester.getByRole("button", { name: "Added ✓" }).first()).toBeVisible();
+  await expect(tester.getByRole("button", { name: "Added ✓" })).toBeVisible();
+
+  // The unmatched comment is offered at the end and can be added to any question.
+  const others = tester.getByRole("region", { name: "Other things you mentioned" });
+  await expect(others).toContainText("I wonder who drew the lanterns");
+  await others.getByRole("combobox").selectOption({ label: "4. What did you enjoy most?" });
+  await expect(others).toContainText("Added to question 4 ✓");
+  await expect(tester.getByLabel("Answer to question 4")).toHaveValue(/I wonder who drew the lanterns/);
+  await tester.getByText("Other things you mentioned").scrollIntoViewIfNeeded();
+  await tester.screenshot({ path: path.join(SHOTS, "e2e-7-recall-cards-on-request.png"), fullPage: true });
   await tester.getByRole("button", { name: "Submit feedback" }).click();
   await expect(tester.getByText(/Thanks for playtesting/)).toBeVisible();
 
@@ -133,6 +155,7 @@ test("AI wording: 'Use this wording' fills the answer, and the review marks it a
   await page.getByRole("link", { name: "Review" }).first().click();
   await expect(page.getByText("Includes AI wording")).toBeVisible();
   await expect(page.getByText("Used AI wording")).toBeVisible();
+  await expect(page.getByText("opened by tester")).toBeVisible();
   await page.getByText("Includes AI wording").scrollIntoViewIfNeeded();
   await page.screenshot({ path: path.join(SHOTS, "e2e-6-ai-wording-review.png") });
 });
