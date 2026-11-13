@@ -5,8 +5,8 @@ issue: null
 agent: claude-code
 model: claude-opus-5-5
 type: feature
-commits: [33e11ad, 362e7f6, 1120b9c]
-outcome: in-progress
+commits: [33e11ad, 362e7f6, 1120b9c, e6983f2]
+outcome: accepted
 human_corrections: 1
 caught_by: [unit-test]
 ---
@@ -30,12 +30,14 @@ repeating; (3) comments no question picked up are offered at the end ("Other thi
 
 ## Validation
 - `npm run check`: 45 unit tests pass (2 Whisper tests skipped with SKIP_ASR=1); typecheck and lint clean.
-- One E2E run reached the questionnaire and its screenshot looks right; a later step failed and was not yet diagnosed.
+- `npm run e2e`: 13/13; the new recall-cards test passed 4 runs in a row. Screenshots checked: questionnaire at 1440
+  and 375 px (no sideways scroll, now asserted in the test), review page shows "Used AI wording" + "opened by tester".
+- The first E2E attempts could not even start the test server: the disk was 98% full (about 4 GB free). The earlier
+  "failed step" was the same server stalling mid-run, not an app bug; with load lower the same test passes.
+- Dev-server log noise during runs (`__webpack_require__.C`, a jest-worker "invalid package config"): no test failed.
 
 ## Not verified
-- The full E2E suite: the disk is 98% full (about 4 GB free) and the Next.js test server cannot start within its
-  2-minute limit. To be rerun once space is freed.
-- Whether a real model follows the one-question rule (no API key here; #16). Phone width not checked yet.
+- Whether a real model follows the one-question rule (no API key here; #16).
 
 ## Lesson
 A "safe" extra option (the per-game switch) was scope the user did not need; version control was already the undo.
