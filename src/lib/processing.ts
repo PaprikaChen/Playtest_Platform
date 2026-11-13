@@ -114,8 +114,8 @@ export async function processSession(sessionId: string) {
         for (const m of result.matches) {
           const u = byId.get(m.utterance_id)!;
           run(
-            "INSERT INTO recall_prompts (id,session_id,question_id,utterance_id,hint,summary,replay_start_ms,replay_end_ms) VALUES (?,?,?,?,?,?,?,?)",
-            newId("rcp"), sessionId, m.question_id, m.utterance_id, m.hint, m.summary,
+            "INSERT INTO recall_prompts (id,session_id,question_id,utterance_id,hint,summary,also_json,replay_start_ms,replay_end_ms) VALUES (?,?,?,?,?,?,?,?,?)",
+            newId("rcp"), sessionId, m.question_id, m.utterance_id, m.hint, m.summary, JSON.stringify(m.also),
             Math.max(0, u.start_ms - REPLAY_BEFORE_MS), u.end_ms + REPLAY_AFTER_MS,
           );
         }

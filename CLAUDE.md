@@ -56,6 +56,12 @@ Node ≥ 22.5 (built-in `node:sqlite`). Data goes in `./data` (git-ignored). Sam
 - Local Whisper needs the `_timestamped` ONNX export for word timestamps. Plain exports only give coarse ~7 s segments.
 - Whisper outputs Traditional Chinese for Mandarin; tests accept both scripts.
 - A MediaRecorder keeps recording when one track ends. Don't stop it when screen sharing ends, or the mic is lost.
+- `next dev` can refresh the server part of an open page on its own (an `?_rsc=` request). If a server page
+  returns a *different* tree after the refresh, client state is thrown away; that replaced "Thanks" with "already
+  submitted" intermittently on CI. Keep the same client component and pass server facts as props
+  (`SurveyPage alreadySubmitted`). E2E can force it with `window.next.router.refresh()`.
+- Server-rendered forms lose input made before hydration (box looks checked, state is false). The consent form is
+  disabled until hydrated; E2E delays `/_next/static/chunks/` to reproduce.
 - Next.js strips `Content-Encoding` set by a route handler, so `.br`/`.gz` game assets are decompressed server-side.
 - The HTML `hidden` attribute loses to Tailwind display classes (`flex`, `grid`). Toggle classes instead.
 - `src/components/ui.tsx` and `src/lib/format.ts` are imported by client components. Never import `repo`/`db` there

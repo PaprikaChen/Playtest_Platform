@@ -13,6 +13,10 @@ export function TesterApp(props: { token: string; projectName: string; projectDe
   const [stage, setStage] = useState<Stage>("intro");
   const [name, setName] = useState("");
   const [consent, setConsent] = useState(false);
+  // The consent form is server-rendered; input made before React hydrates it is lost from state (the box looks
+  // checked but Start stays disabled). Keep the controls disabled until hydration, which is usually instant.
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => setHydrated(true), []);
   const [wantScreen, setWantScreen] = useState(true);
   const [wantMic, setWantMic] = useState(true);
   // Off by default: the full recording is transcribed after the session; live captions send audio to the browser vendor.
@@ -208,6 +212,7 @@ export function TesterApp(props: { token: string; projectName: string; projectDe
               <li className="rounded-xl bg-background p-3"><span className="text-xs font-semibold text-accent-strong">Step 1: Play</span><p className="mt-1">Think out loud while you play, or type quick notes.</p></li>
               <li className="rounded-xl bg-background p-3"><span className="text-xs font-semibold text-accent-strong">Step 2: Answer</span><p className="mt-1">{props.questionCount} short questions, with replays of what you said.</p></li>
             </ol>
+            <fieldset disabled={!hydrated} className="min-w-0 space-y-6">
             <fieldset className="space-y-2">
               <legend className="mb-2 text-sm font-medium">What gets recorded</legend>
               <Option icon="🖥" checked={wantScreen} onChange={setWantScreen} title="Screen" desc={<>When Chrome asks, choose <b>this tab</b>.</>} />
@@ -235,6 +240,7 @@ export function TesterApp(props: { token: string; projectName: string; projectDe
               {error && <p className="text-sm text-bad">{error}</p>}
               <button className="btn-primary w-full py-3 text-[15px]" disabled={!consent || starting} onClick={start}>{starting ? "Waiting for screen & mic permission…" : "Start playtest"}</button>
             </div>
+            </fieldset>
           </div>
         </div>
       </main>

@@ -4,7 +4,8 @@ import { SPOKEN_LANGUAGES, type Question } from "../types";
 const normalizePrimary = (lang?: string | null) => lang?.toLowerCase().split(/[-_]/)[0] ?? null;
 
 export interface RecallInputUtterance { id: string; text: string; start_ms: number }
-export interface RecallMatch { question_id: string; utterance_id: string; hint: string; summary: string }
+/** One card per comment: `question_id` is its best-fit question, `also` the other questions it relates to. */
+export interface RecallMatch { question_id: string; utterance_id: string; hint: string; summary: string; also: string[] }
 export interface RecallResult { provider: string; model: string | null; placeholder: boolean; matches: RecallMatch[] }
 
 export const MAX_PROMPTS_PER_QUESTION = 3;
@@ -23,11 +24,13 @@ export function buildRecallPrompt(questions: Question[], utterances: RecallInput
   const us = utterances.map((u) => `${u.id} [${fmt(u.start_ms)}]: ${u.text}`).join("\n");
   const name = SPOKEN_LANGUAGES.find((l) => l.code === normalizePrimary(language))?.whisper;
   return `You help a game playtester recall what they said while playing, so they can answer a questionnaire.
-Match each tester comment to the questionnaire questions it is clearly relevant to.
+Match each tester comment to the questionnaire question it is most relevant to.
 
 Rules:
 - Only match when the comment is genuinely relevant to the question. Skip unrelated comments.
-- At most ${MAX_PROMPTS_PER_QUESTION} comments per question. A comment may match more than one question.
+- Put each comment under at most ONE question: the one it fits best. If it is also clearly relevant to other
+  questions, list their ids in "also_question_ids" (otherwise an empty list).
+- At most ${MAX_PROMPTS_PER_QUESTION} comments per question.
 - For each match write "hint": ONE short, neutral sentence (max 20 words) inviting the tester to expand.
   Do not judge, do not add sentiment the tester did not express, do not suggest an answer.
   Good: "You mentioned the jump here. Want to say more about it?"
@@ -46,29 +49,37 @@ ${qs}
 COMMENTS
 ${us}
 
-Respond with JSON only: {"matches":[{"question_id":"...","utterance_id":"...","hint":"...","summary":"..."}]}`;
+Respond with JSON only: {"matches":[{"question_id":"...","utterance_id":"...","also_question_ids":[],"hint":"...","summary":"..."}]}`;
 }
 
-/** Keep only matches that reference real IDs, de-duplicate, cap per question. */
+/**
+ * Keep only matches that reference real IDs, give each comment ONE card (the first listing wins, later
+ * listings of the same comment become `also`), and cap cards per question.
+ */
 export function sanitizeMatches(raw: unknown, questions: Question[], utterances: RecallInputUtterance[]): RecallMatch[] {
   const qids = new Set(questions.map((q) => q.id));
   const uids = new Set(utterances.map((u) => u.id));
   const list = (raw as { matches?: unknown })?.matches;
   if (!Array.isArray(list)) return [];
-  const seen = new Set<string>();
+  const byUtterance = new Map<string, RecallMatch>();
   const perQ = new Map<string, number>();
   const out: RecallMatch[] = [];
+  const addAlso = (m: RecallMatch, q: string) => { if (qids.has(q) && q !== m.question_id && !m.also.includes(q)) m.also.push(q); };
   for (const m of list) {
     const q = String(m?.question_id ?? "");
     const u = String(m?.utterance_id ?? "");
+    if (!qids.has(q) || !uids.has(u)) continue;
+    const existing = byUtterance.get(u);
+    if (existing) { addAlso(existing, q); continue; }
+    if ((perQ.get(q) ?? 0) >= MAX_PROMPTS_PER_QUESTION) continue;
     const hint = String(m?.hint ?? "").replace(/\s+/g, " ").trim().slice(0, 200);
     // The summary is AI-generated display text: whitespace-normalised and capped, never trusted as-is.
     const summary = String(m?.summary ?? "").replace(/\s+/g, " ").trim().slice(0, 400);
-    if (!qids.has(q) || !uids.has(u) || seen.has(`${q}|${u}`)) continue;
-    if ((perQ.get(q) ?? 0) >= MAX_PROMPTS_PER_QUESTION) continue;
-    seen.add(`${q}|${u}`);
+    const match: RecallMatch = { question_id: q, utterance_id: u, hint: hint || "You commented on this while playing. Want to say more?", summary, also: [] };
+    if (Array.isArray(m?.also_question_ids)) for (const a of m.also_question_ids) addAlso(match, String(a));
+    byUtterance.set(u, match);
     perQ.set(q, (perQ.get(q) ?? 0) + 1);
-    out.push({ question_id: q, utterance_id: u, hint: hint || "You commented on this while playing. Want to say more?", summary });
+    out.push(match);
   }
   return out;
 }
@@ -100,17 +111,20 @@ function tokens(s: string): Set<string> {
 }
 
 export function mockRecall(questions: Question[], utterances: RecallInputUtterance[]): RecallResult {
+  const qTokens = questions.map((q) => ({ q, t: tokens(q.prompt) }));
+  // Score every comment against every question; it goes under its best question (ties: earlier question).
+  const cards = utterances.flatMap((u) => {
+    const ut = [...tokens(u.text)];
+    const scores = qTokens.map(({ q, t }) => ({ q, score: ut.filter((x) => t.has(x)).length })).filter((s) => s.score > 0);
+    if (!scores.length) return [];
+    const best = scores.reduce((a, b) => (b.score > a.score ? b : a));
+    return [{ u, q: best.q, score: best.score, also: scores.filter((s) => s.q !== best.q).map((s) => s.q.id) }];
+  });
   const matches: RecallMatch[] = [];
-  for (const q of questions) {
-    const qt = tokens(q.prompt);
-    const scored = utterances
-      .map((u) => ({ u, score: [...tokens(u.text)].filter((t) => qt.has(t)).length }))
-      .filter((x) => x.score > 0)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, MAX_PROMPTS_PER_QUESTION);
-    for (const { u } of scored) {
+  for (const { q } of qTokens) {
+    for (const c of cards.filter((x) => x.q === q).sort((a, b) => b.score - a.score).slice(0, MAX_PROMPTS_PER_QUESTION)) {
       // No summary from the keyword matcher: a summary that just echoes the quote adds noise, not recall.
-      matches.push({ question_id: q.id, utterance_id: u.id, hint: `You commented on this around ${fmt(u.start_ms)}. Want to say more about it?`, summary: "" });
+      matches.push({ question_id: q.id, utterance_id: c.u.id, hint: `You commented on this around ${fmt(c.u.start_ms)}. Want to say more about it?`, summary: "", also: c.also });
     }
   }
   return { provider: "mock", model: null, placeholder: true, matches };

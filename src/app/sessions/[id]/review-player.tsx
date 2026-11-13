@@ -103,6 +103,8 @@ export function ReviewPlayer({ sessionId, projectId, hasRecording, audioOnly, du
                             <span className="mt-0.5 flex items-baseline gap-1.5 text-xs text-muted">
                               <span className="pill shrink-0 bg-accent-soft text-accent-strong">AI summary</span>
                               <span>{p.summary}</span>
+                              {/* Testers see the AI wording only on request; this says whether they asked. */}
+                              <span className="ml-auto shrink-0 whitespace-nowrap">{p.summary_revealed ? "opened by tester" : "not opened"}</span>
                             </span>
                           )}
                         </button>

@@ -219,6 +219,18 @@ export function setPromptState(sessionId: string, promptId: string, state: strin
   run("UPDATE recall_prompts SET state=?, inserted_as=COALESCE(?, inserted_as) WHERE id=? AND session_id=?", state, insertedAs ?? null, promptId, sessionId);
 }
 
+/** The tester asked to see the AI wording on a card (it is hidden until they do). */
+export function revealSummary(sessionId: string, promptId: string) {
+  run("UPDATE recall_prompts SET summary_revealed=1 WHERE id=? AND session_id=?", promptId, sessionId);
+}
+
+/** Comments no recall card picked up, offered at the end of the questionnaire. One-word filler is skipped. */
+export function listUnmatchedUtterances(sessionId: string): Utterance[] {
+  const used = new Set(listPrompts(sessionId).map((p) => p.utterance_id));
+  const substantial = (t: string) => t.trim().length >= 6 || /[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]{2,}/.test(t);
+  return listUtterances(sessionId).filter((u) => !used.has(u.id) && substantial(u.text));
+}
+
 export interface Answer { id: string; session_id: string; question_id: string; text: string; rating: number | null; prompt_ids_json: string; updated_at: number }
 export const listAnswers = (sessionId: string) => all<Answer>("SELECT * FROM answers WHERE session_id=?", sessionId);
 

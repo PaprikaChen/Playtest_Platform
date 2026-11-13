@@ -91,7 +91,9 @@ CREATE TABLE IF NOT EXISTS recall_prompts (
   replay_start_ms INTEGER NOT NULL,
   replay_end_ms INTEGER NOT NULL,
   state TEXT NOT NULL DEFAULT 'shown',
-  inserted_as TEXT
+  inserted_as TEXT,
+  also_json TEXT NOT NULL DEFAULT '[]',
+  summary_revealed INTEGER NOT NULL DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS answers (
   id TEXT PRIMARY KEY,
@@ -125,6 +127,8 @@ function migrate(conn: DatabaseSync) {
   if (!cols("sessions").includes("language")) conn.exec("ALTER TABLE sessions ADD COLUMN language TEXT");
   if (!cols("recall_prompts").includes("summary")) conn.exec("ALTER TABLE recall_prompts ADD COLUMN summary TEXT NOT NULL DEFAULT ''");
   if (!cols("recall_prompts").includes("inserted_as")) conn.exec("ALTER TABLE recall_prompts ADD COLUMN inserted_as TEXT");
+  if (!cols("recall_prompts").includes("also_json")) conn.exec("ALTER TABLE recall_prompts ADD COLUMN also_json TEXT NOT NULL DEFAULT '[]'");
+  if (!cols("recall_prompts").includes("summary_revealed")) conn.exec("ALTER TABLE recall_prompts ADD COLUMN summary_revealed INTEGER NOT NULL DEFAULT 0");
 }
 
 type Row = Record<string, unknown>;

@@ -4,7 +4,9 @@ import { ClipPlayer } from "@/components/clip-player";
 import { fmtTime } from "@/lib/format";
 import type { Question } from "@/lib/types";
 
-interface Prompt { id: string; question_id: string; quote: string; hint: string; summary: string; source: string; start_ms: number; replay_start_ms: number; replay_end_ms: number; state: string }
+interface Prompt { id: string; question_id: string; quote: string; hint: string; summary: string; summary_revealed: number; also: string[]; source: string; start_ms: number; replay_start_ms: number; replay_end_ms: number; state: string }
+/** A comment no question picked up, offered at the end so nothing the tester said is lost. */
+interface Moment { id: string; quote: string; source: string; start_ms: number; replay_start_ms: number; replay_end_ms: number }
 interface Status { session: string; transcript: string; prompts: string; provider: string | null; error: string | null }
 interface Ans { text: string; rating: number | null; promptIds: string[] }
 
@@ -12,6 +14,7 @@ export function Survey({ token, sessionId, projectName, audioOnly, onSubmitted }
   const [questions, setQuestions] = useState<Question[]>([]);
   const [title, setTitle] = useState("");
   const [prompts, setPrompts] = useState<Prompt[]>([]);
+  const [others, setOthers] = useState<Moment[]>([]);
   const [status, setStatus] = useState<Status | null>(null);
   const [hasRecording, setHasRecording] = useState(false);
   const [answers, setAnswers] = useState<Record<string, Ans>>({});
@@ -36,6 +39,7 @@ export function Survey({ token, sessionId, projectName, audioOnly, onSubmitted }
         setStatus(body.status);
         setHasRecording(body.hasRecording);
         setPrompts(body.prompts);
+        setOthers(body.otherMoments ?? []);
         if (!loaded.current) {
           // Restore saved drafts once (after a reload); never overwrite what the tester is typing.
           loaded.current = true;
@@ -94,7 +98,21 @@ export function Survey({ token, sessionId, projectName, audioOnly, onSubmitted }
     setAns(p.question_id, { text: a.text ? `${a.text.trimEnd()}\n${line}` : line, promptIds: [...new Set([...a.promptIds, p.id])] });
     setPromptState(p, "inserted", insertedAs);
   }
-  const quoteLine = (p: Prompt) => `At ${fmtTime(p.start_ms)} I said “${p.quote}”. `;
+  const quoteLine = (p: { start_ms: number; quote: string }) => `At ${fmtTime(p.start_ms)} I said “${p.quote}”. `;
+  // The AI wording is shown on request only, so it can't anchor the tester's answer by default.
+  function reveal(p: Prompt) {
+    setPrompts((ps) => ps.map((x) => (x.id === p.id ? { ...x, summary_revealed: 1 } : x)));
+    void fetch(`/api/sessions/${sessionId}/recall-prompts`, { method: "PATCH", headers, keepalive: true, body: JSON.stringify({ promptId: p.id, reveal: true }) });
+  }
+  function addOther(m: Moment, questionIndex: number) {
+    const q = questions[questionIndex];
+    const a = ans(q.id);
+    const line = quoteLine(m);
+    setAns(q.id, { text: a.text ? `${a.text.trimEnd()}\n${line}` : line });
+  }
+  // Derived from the saved answers (not memory), so "added" survives a reload and nothing gets added twice.
+  const addedTo = (m: Moment) => { const line = quoteLine(m).trim(); const k = questions.findIndex((q) => ans(q.id).text.includes(line)); return k >= 0 ? k + 1 : 0; };
+  const questionNumber = (id: string) => questions.findIndex((q) => q.id === id) + 1;
 
   async function submit() {
     setBusy(true);
@@ -120,7 +138,7 @@ export function Survey({ token, sessionId, projectName, audioOnly, onSubmitted }
           <span aria-hidden className="mt-0.5">{pending ? "⏳" : status?.prompts === "failed" ? "⚠️" : "💡"}</span>
           <p>
             {pending && "Finding the moments you commented on… You can start answering (and even submit) now; reminders will appear under each question when ready."}
-            {status?.prompts === "done" && <>Reminders are based only on what you said or typed; &ldquo;One way to put it&rdquo; is an AI rewording of your own comment and may be imperfect. They&apos;re suggestions: insert, edit or dismiss them. Nothing is filled in for you.{status.provider?.includes("placeholder") && <span className="opacity-70"> (Alpha: keyword matching stands in for the AI model.)</span>}</>}
+            {status?.prompts === "done" && <>Reminders are based only on what you said or typed. They&apos;re suggestions: insert, edit or dismiss them. &ldquo;Help me put this in words&rdquo; shows an AI rewording of your own comment, which may be imperfect. Nothing is filled in for you.{status.provider?.includes("placeholder") && <span className="opacity-70"> (Alpha: keyword matching stands in for the AI model.)</span>}</>}
             {status?.prompts === "failed" && "Reminders couldn't be generated this time. Your answers still work as normal."}
           </p>
         </div>
@@ -132,7 +150,7 @@ export function Survey({ token, sessionId, projectName, audioOnly, onSubmitted }
           const a = ans(q.id);
           const answered = Boolean(a.text.trim() || a.rating);
           return (
-            <li key={q.id} className="card p-0 overflow-hidden">
+            <li key={q.id} id={`question-${i + 1}`} className="card scroll-mt-6 p-0 overflow-hidden">
               <div className="p-5 space-y-3">
                 <h2 className="flex gap-3 text-[15px] font-medium leading-snug">
                   <span className={`grid size-6 shrink-0 place-items-center rounded-full text-xs font-semibold ${answered ? "bg-ok text-white" : "bg-background text-muted border border-line"}`}>{answered ? "✓" : i + 1}</span>
@@ -171,15 +189,26 @@ export function Survey({ token, sessionId, projectName, audioOnly, onSubmitted }
                             <span className="italic">“{p.quote}”</span>
                           </p>
                           <p className="mt-1 text-xs text-muted">{p.hint}</p>
-                          {p.summary && (
+                          {p.also.length > 0 && (
+                            <p className="mt-1 text-xs text-muted">
+                              Also relates to{" "}
+                              {p.also.map((qid, k) => (
+                                <span key={qid}>{k > 0 && ", "}<a className="font-medium text-accent-strong underline-offset-2 hover:underline" href={`#question-${questionNumber(qid)}`}>question {questionNumber(qid)}</a></span>
+                              ))}
+                            </p>
+                          )}
+                          {p.summary && p.summary_revealed === 1 && (
                             <p className="mt-1.5 rounded-lg bg-background px-2 py-1.5 text-xs">
                               <span className="pill mr-1.5 bg-accent-soft text-accent-strong" title="Written by AI from your own comment">One way to put it</span>
                               {p.summary}
                             </p>
                           )}
                           <div className="mt-auto flex flex-wrap gap-1.5 pt-2">
-                            <button type="button" className="btn-ghost py-1 text-xs" disabled={p.state === "inserted"} onClick={() => insert(p, quoteLine(p), "quote")}>{p.state === "inserted" ? "Added ✓" : p.summary ? "Add quote" : "Add to my answer"}</button>
-                            {p.summary && (
+                            <button type="button" className="btn-ghost py-1 text-xs" disabled={p.state === "inserted"} onClick={() => insert(p, quoteLine(p), "quote")}>{p.state === "inserted" ? "Added ✓" : p.summary && p.summary_revealed === 1 ? "Add quote" : "Add to my answer"}</button>
+                            {p.summary && p.summary_revealed !== 1 && p.state !== "inserted" && (
+                              <button type="button" className="btn py-1 text-xs text-accent-strong hover:underline" onClick={() => reveal(p)} title="Shows an AI rewording of your own comment">Help me put this in words</button>
+                            )}
+                            {p.summary && p.summary_revealed === 1 && (
                               <button type="button" className="btn-ghost py-1 text-xs" disabled={p.state === "inserted"} onClick={() => insert(p, p.summary, "summary")} title="Inserts this wording into your answer; edit it to match what you mean.">Use this wording</button>
                             )}
                             <button type="button" className="btn py-1 text-xs text-muted hover:text-foreground" onClick={() => setPromptState(p, "dismissed")}>Dismiss</button>
@@ -194,6 +223,39 @@ export function Survey({ token, sessionId, projectName, audioOnly, onSubmitted }
           );
         })}
       </ol>
+
+      {others.length > 0 && questions.length > 0 && (
+        <section className="card mt-5 p-5" aria-labelledby="others-title">
+          <p className="flex flex-wrap items-baseline gap-2"><span id="others-title" className="text-sm font-semibold">Other things you mentioned</span><span className="tag">not matched to a question, add one if it helps</span></p>
+          <ul className="mt-3 space-y-2.5">
+            {others.map((m) => (
+              <li key={m.id} className="flex gap-3 rounded-lg border border-line bg-surface p-2.5">
+                {hasRecording && (
+                  <div className="w-40 shrink-0 sm:w-48">
+                    <ClipPlayer src={src} poster={audioOnly ? undefined : `/api/sessions/${sessionId}/thumbnail?ms=${m.start_ms}&t=${encodeURIComponent(token)}`}
+                      startMs={m.replay_start_ms} endMs={m.replay_end_ms} momentMs={m.start_ms} audioOnly={audioOnly} />
+                  </div>
+                )}
+                <div className="flex min-w-0 flex-1 flex-col gap-2">
+                  <p className="text-sm leading-snug [overflow-wrap:anywhere]">
+                    <span className="num mr-1.5 text-xs font-semibold text-accent-strong">{fmtTime(m.start_ms)}</span><span className="mr-1.5 text-xs text-muted">{m.source === "typed" ? "you typed" : "you said"}</span>
+                    <span className="italic">“{m.quote}”</span>
+                  </p>
+                  {addedTo(m) ? (
+                    <p className="text-xs text-ok">Added to question {addedTo(m)} ✓</p>
+                  ) : (
+                    <select className="input w-auto max-w-full py-1 text-xs" aria-label={`Add “${m.quote}” to a question`} value=""
+                      onChange={(e) => { if (e.target.value !== "") addOther(m, Number(e.target.value)); }}>
+                      <option value="">Add to a question…</option>
+                      {questions.map((q, k) => <option key={q.id} value={k}>{`${k + 1}. ${q.prompt}`}</option>)}
+                    </select>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <footer className="fixed inset-x-0 bottom-0 border-t border-line bg-surface/95 backdrop-blur">
         <div className="mx-auto flex max-w-3xl items-center gap-4 px-4 py-3">

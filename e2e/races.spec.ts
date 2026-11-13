@@ -95,3 +95,31 @@ test("creator: double-clicking create/save buttons does the action once", async 
   await page.waitForTimeout(1500);
   await expect(page.getByRole("button", { name: "Copy link" })).toHaveCount(1);
 });
+
+test("consent page: input made before the page's JavaScript loads is not lost (slow connection)", async ({ page, context }) => {
+  const invite = await gameWithInvite(page, `Slow Hydration ${Date.now()}`);
+  const tester = await context.newPage();
+  // Hold the JS chunks back so the tester can act on the server-rendered HTML before React takes over.
+  await tester.route(/\/_next\/static\/chunks\//, async (r) => { await new Promise((res) => setTimeout(res, 3000)); await r.continue(); });
+  await tester.goto(invite, { waitUntil: "domcontentloaded" });
+  await tester.getByLabel("Your name or nickname").fill("Early Bird");
+  await tester.getByLabel(/I agree to the recording/).check();
+  // Before the fix, the box looked checked but React's state stayed false: Start was disabled forever.
+  await expect(tester.getByRole("button", { name: "Start playtest" })).toBeEnabled({ timeout: 15_000 });
+  await expect(tester.getByLabel(/I agree to the recording/)).toBeChecked();
+  await expect(tester.getByLabel("Your name or nickname")).toHaveValue("Early Bird");
+});
+
+test("survey: a server refresh right after submitting keeps the thank-you screen", async ({ page, context }) => {
+  const tester = await surveyWithOneCard(context, await gameWithInvite(page, `Refresh After Submit ${Date.now()}`));
+  await tester.getByRole("button", { name: "Submit feedback" }).click();
+  await expect(tester.getByText(/Thanks for playtesting/)).toBeVisible();
+  // The dev server (and any future router.refresh) re-renders the server part of the page. Before the fix the
+  // server's "already submitted" view replaced the client's thank-you state; CI hit this intermittently.
+  await tester.evaluate(() => (window as unknown as { next: { router: { refresh(): void } } }).next.router.refresh());
+  await tester.waitForLoadState("networkidle");
+  await expect(tester.getByText(/Thanks for playtesting/)).toBeVisible();
+  // A real reload is still a returning visitor: they get the "already submitted" message.
+  await tester.reload();
+  await expect(tester.getByText(/already submitted/)).toBeVisible();
+});
